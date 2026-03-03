@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase, isDemoMode } from '../services/supabaseService';
+import { supabase } from '../services/supabaseService';
 import { MOCK_USERS, getDemoProfile, getDemoConnections, acceptDemoConnection, declineDemoConnection } from '../services/mockData';
 
 interface Connection {
@@ -19,7 +19,7 @@ interface Profile {
 }
 
 export default function ConnectionsPage() {
-  const { user } = useAuth();
+  const { user, isDemo } = useAuth();
   const [pendingRequests, setPendingRequests] = useState<(Connection & { profile: Profile })[]>([]);
   const [accepted, setAccepted] = useState<(Connection & { profile: Profile })[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,7 +27,7 @@ export default function ConnectionsPage() {
 
   const fetchConnections = async () => {
     if (!user) return;
-    if (isDemoMode()) {
+    if (isDemo) {
       const connections = getDemoConnections();
       const profileMap: Record<string, Profile> = {};
       MOCK_USERS.forEach((p) => { profileMap[p.id] = p; });
@@ -122,7 +122,7 @@ export default function ConnectionsPage() {
 
   const handleAccept = async (connectionId: string) => {
     setUpdatingId(connectionId);
-    if (isDemoMode()) {
+    if (isDemo) {
       acceptDemoConnection(connectionId);
       await fetchConnections();
       setUpdatingId(null);
@@ -138,7 +138,7 @@ export default function ConnectionsPage() {
 
   const handleDecline = async (connectionId: string) => {
     setUpdatingId(connectionId);
-    if (isDemoMode()) {
+    if (isDemo) {
       declineDemoConnection(connectionId);
       await fetchConnections();
       setUpdatingId(null);

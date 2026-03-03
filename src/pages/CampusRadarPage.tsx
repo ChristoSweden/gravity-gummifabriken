@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase, isDemoMode } from '../services/supabaseService';
+import { supabase } from '../services/supabaseService';
 import { MOCK_USERS, getDemoProfile, isConnectedInDemo, addDemoConnection } from '../services/mockData';
 
 interface Profile {
@@ -15,7 +15,7 @@ interface ConnectionStatus {
 }
 
 export default function CampusRadarPage() {
-  const { user } = useAuth();
+  const { user, isDemo } = useAuth();
   const [userProfile, setUserProfile] = useState<Profile | null>(null);
   const [matches, setMatches] = useState<(Profile & { overlap: string[] })[]>([]);
   const [connectionStatuses, setConnectionStatuses] = useState<ConnectionStatus>({});
@@ -28,7 +28,7 @@ export default function CampusRadarPage() {
     const fetchData = async () => {
       setLoading(true);
 
-      if (isDemoMode()) {
+      if (isDemo) {
         const me = getDemoProfile();
         const others = MOCK_USERS;
         setUserProfile(me as any);
@@ -128,7 +128,7 @@ export default function CampusRadarPage() {
   const sendConnectionRequest = async (recipientId: string) => {
     setSendingTo(recipientId);
 
-    if (isDemoMode()) {
+    if (isDemo) {
       addDemoConnection(recipientId);
       setConnectionStatuses((prev) => ({ ...prev, [recipientId]: 'pending_sent' }));
       setSendingTo(null);

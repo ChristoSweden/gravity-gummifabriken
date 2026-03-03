@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase, isDemoMode } from '../services/supabaseService';
+import { supabase } from '../services/supabaseService';
 import { MOCK_USERS, getDemoProfile, getDemoMessages, addDemoMessage, isConnectedInDemo } from '../services/mockData';
 
 interface Message {
@@ -14,7 +14,7 @@ interface Message {
 
 export default function ChatPage() {
   const { userId } = useParams();
-  const { user } = useAuth();
+  const { user, isDemo } = useAuth();
   const navigate = useNavigate();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -29,7 +29,7 @@ export default function ChatPage() {
     const init = async () => {
       setLoading(true);
 
-      if (isDemoMode()) {
+      if (isDemo) {
         const connected = isConnectedInDemo(userId);
 
         if (connected !== 'accepted') {
@@ -120,7 +120,7 @@ export default function ChatPage() {
     e.preventDefault();
     if (!newMessage.trim() || !userId) return;
 
-    if (isDemoMode()) {
+    if (isDemo) {
       const newMsg = addDemoMessage(userId, newMessage.trim());
       setMessages((prev) => [...prev, newMsg as any]);
       setNewMessage('');

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase, isDemoMode } from '../services/supabaseService';
+import { supabase } from '../services/supabaseService';
 import { setDemoInterests, seedDemoData } from '../services/mockData';
 
 const INTEREST_OPTIONS = [
@@ -28,7 +28,7 @@ const INTEREST_OPTIONS = [
 ];
 
 export default function OnboardingPage() {
-  const { user } = useAuth();
+  const { user, isDemo } = useAuth();
   const navigate = useNavigate();
   const [selected, setSelected] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
@@ -45,7 +45,7 @@ export default function OnboardingPage() {
   const handleContinue = async () => {
     if (selected.length < 3) return;
 
-    if (isDemoMode()) {
+    if (isDemo) {
       setSaving(true);
       setDemoInterests(selected);
       // Simulate save delay
@@ -77,7 +77,7 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[--color-bg-warm] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[--color-bg-warm] flex items-start justify-center p-4 pt-8 overflow-y-auto">
       <div className="bg-white p-8 md:p-12 rounded-3xl shadow-xl border border-[--color-mist] w-full max-w-2xl animate-fade-in">
         <h2 className="text-3xl font-brand font-bold text-[--color-primary] mb-2 text-center uppercase tracking-tight">
           What drives you?
