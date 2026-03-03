@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../services/supabaseService';
+import { supabase, isDemoMode } from '../services/supabaseService';
+import { setDemoInterests, seedDemoData } from '../services/mockData';
 
 const INTEREST_OPTIONS = [
   'AI / Machine Learning',
@@ -43,6 +44,17 @@ export default function OnboardingPage() {
 
   const handleContinue = async () => {
     if (selected.length < 3) return;
+
+    if (isDemoMode()) {
+      setSaving(true);
+      setDemoInterests(selected);
+      // Simulate save delay
+      setTimeout(() => {
+        navigate('/radar');
+      }, 800);
+      return;
+    }
+
     if (!user) return;
 
     setSaving(true);
@@ -81,11 +93,10 @@ export default function OnboardingPage() {
               <button
                 key={interest}
                 onClick={() => toggleInterest(interest)}
-                className={`px-4 py-2 rounded-full text-sm font-semibold transition-all border-2 ${
-                  isSelected
-                    ? 'bg-[--color-primary] text-white border-[--color-primary] shadow-md'
-                    : 'bg-white text-[--color-steel] border-[--color-mist] hover:border-[--color-primary] hover:text-[--color-primary]'
-                }`}
+                className={`px-4 py-2 rounded-full text-sm font-semibold transition-all border-2 ${isSelected
+                  ? 'bg-[--color-primary] text-white border-[--color-primary] shadow-md'
+                  : 'bg-white text-[--color-steel] border-[--color-mist] hover:border-[--color-primary] hover:text-[--color-primary]'
+                  }`}
               >
                 {interest}
               </button>

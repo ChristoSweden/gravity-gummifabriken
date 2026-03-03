@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../services/supabaseService';
+import { supabase, isDemoMode } from '../services/supabaseService';
+import { getDemoProfile, setDemoProfile, setDemoInterests } from '../services/mockData';
 
 export default function ProfilePage() {
   const { user } = useAuth();
@@ -17,6 +18,15 @@ export default function ProfilePage() {
     if (user) {
       const fetchProfile = async () => {
         setLoading(true);
+
+        if (isDemoMode()) {
+          const profile = getDemoProfile();
+          setFullName(profile.full_name || '');
+          setInterests(profile.interests ? profile.interests.join(', ') : '');
+          setLoading(false);
+          return;
+        }
+
         const { data, error } = await supabase
           .from('profiles')
           .select('full_name, interests, is_incognito, visibility_setting, profile_blur')
@@ -50,6 +60,15 @@ export default function ProfilePage() {
     }
 
     setLoading(true);
+
+    if (isDemoMode()) {
+      setDemoProfile(fullName, '', ''); // We'll just update name for now
+      setDemoInterests(interests.split(',').map((s) => s.trim()));
+      setMessage('Profile updated successfully (Demo Mode)!');
+      setLoading(false);
+      return;
+    }
+
     const updates = {
       id: user.id,
       full_name: fullName,

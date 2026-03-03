@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../services/supabaseService';
+import { supabase, isDemoMode } from '../services/supabaseService';
+import { MOCK_USERS, getDemoProfile, getDemoMessages, addDemoMessage, isConnectedInDemo } from '../services/mockData';
 
 interface Message {
   id: string;
   sender_id: string;
+  recipient_id: string;
   content: string;
   created_at: string;
 }
@@ -26,6 +28,25 @@ export default function ChatPage() {
 
     const init = async () => {
       setLoading(true);
+
+      if (isDemoMode()) {
+        const connected = isConnectedInDemo(userId);
+
+        if (connected !== 'accepted') {
+          setAuthorized(false);
+          setLoading(false);
+          return;
+        }
+
+        setAuthorized(true);
+        const profile = MOCK_USERS.find(p => p.id === userId);
+        if (profile) setRecipientName(profile.full_name);
+
+        const msgs = getDemoMessages(userId);
+        setMessages(msgs as any);
+        setLoading(false);
+        return;
+      }
 
       // Check that users are connected
       const { data: connection } = await supabase
@@ -97,7 +118,16 @@ export default function ChatPage() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !user || !userId) return;
+    if (!newMessage.trim() || !userId) return;
+
+    if (isDemoMode()) {
+      const newMsg = addDemoMessage(userId, newMessage.trim());
+      setMessages((prev) => [...prev, newMsg as any]);
+      setNewMessage('');
+      return;
+    }
+
+    if (!user) return;
 
     const { data, error } = await supabase
       .from('messages')
@@ -156,11 +186,10 @@ export default function ChatPage() {
         {messages.map((msg) => (
           <div key={msg.id} className={`flex ${msg.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}>
             <div
-              className={`max-w-[80%] p-3 rounded-2xl shadow-sm text-sm ${
-                msg.sender_id === user?.id
-                  ? 'bg-[--color-primary] text-white rounded-tr-none'
-                  : 'bg-white text-[--color-steel] border border-[--color-mist] rounded-tl-none'
-              }`}
+              className={`max-w-[80%] p-3 rounded-2xl shadow-sm text-sm ${msg.sender_id === user?.id
+                ? 'bg-[--color-primary] text-white rounded-tr-none'
+                : 'bg-white text-[--color-steel] border border-[--color-mist] rounded-tl-none'
+                }`}
             >
               {msg.content}
               <p className={`text-[8px] mt-1 opacity-50 ${msg.sender_id === user?.id ? 'text-right' : 'text-left'}`}>

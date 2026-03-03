@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../services/supabaseService';
+import { supabase, isDemoMode } from '../services/supabaseService';
+import { MOCK_USERS, getDemoProfile, getDemoConnections, acceptDemoConnection, declineDemoConnection } from '../services/mockData';
 
 interface Connection {
   id: string;
@@ -26,7 +27,32 @@ export default function ConnectionsPage() {
 
   const fetchConnections = async () => {
     if (!user) return;
-    setLoading(true);
+    if (isDemoMode()) {
+      const connections = getDemoConnections();
+      const profileMap: Record<string, Profile> = {};
+      MOCK_USERS.forEach((p) => { profileMap[p.id] = p; });
+      profileMap[getDemoProfile().id] = getDemoProfile();
+
+      const pending: (Connection & { profile: Profile })[] = [];
+      const acc: (Connection & { profile: Profile })[] = [];
+
+      connections.forEach((c) => {
+        const otherId = c.requester_id === getDemoProfile().id ? c.recipient_id : c.requester_id;
+        const profile = profileMap[otherId];
+        if (!profile) return;
+
+        if (c.status === 'pending' && c.recipient_id === getDemoProfile().id) {
+          pending.push({ ...c, profile });
+        } else if (c.status === 'accepted') {
+          acc.push({ ...c, profile });
+        }
+      });
+
+      setPendingRequests(pending);
+      setAccepted(acc);
+      setLoading(false);
+      return;
+    }
 
     // Fetch all connections involving current user
     const { data: connections } = await supabase
@@ -96,6 +122,12 @@ export default function ConnectionsPage() {
 
   const handleAccept = async (connectionId: string) => {
     setUpdatingId(connectionId);
+    if (isDemoMode()) {
+      acceptDemoConnection(connectionId);
+      await fetchConnections();
+      setUpdatingId(null);
+      return;
+    }
     await supabase
       .from('connections')
       .update({ status: 'accepted' })
@@ -106,6 +138,12 @@ export default function ConnectionsPage() {
 
   const handleDecline = async (connectionId: string) => {
     setUpdatingId(connectionId);
+    if (isDemoMode()) {
+      declineDemoConnection(connectionId);
+      await fetchConnections();
+      setUpdatingId(null);
+      return;
+    }
     await supabase
       .from('connections')
       .delete()

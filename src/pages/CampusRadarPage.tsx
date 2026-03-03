@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../services/supabaseService';
+import { supabase, isDemoMode } from '../services/supabaseService';
+import { MOCK_USERS, getDemoProfile, isConnectedInDemo, addDemoConnection } from '../services/mockData';
 
 interface Profile {
   id: string;
@@ -26,6 +27,33 @@ export default function CampusRadarPage() {
 
     const fetchData = async () => {
       setLoading(true);
+
+      if (isDemoMode()) {
+        const me = getDemoProfile();
+        const others = MOCK_USERS;
+        setUserProfile(me as any);
+
+        const myInterests = new Set(me.interests.map((i) => i.toLowerCase()));
+        const withOverlap = others
+          .map((p) => {
+            const overlap = (p.interests || []).filter((i) =>
+              myInterests.has(i.toLowerCase())
+            );
+            return { ...p, overlap };
+          })
+          .filter((p) => p.overlap.length > 0)
+          .sort((a, b) => b.overlap.length - a.overlap.length);
+
+        setMatches(withOverlap as any);
+
+        const statuses: ConnectionStatus = {};
+        others.forEach((p) => {
+          statuses[p.id] = isConnectedInDemo(p.id);
+        });
+        setConnectionStatuses(statuses);
+        setLoading(false);
+        return;
+      }
 
       // Fetch all profiles
       const { data: profiles } = await supabase
@@ -98,8 +126,16 @@ export default function CampusRadarPage() {
   }, [user]);
 
   const sendConnectionRequest = async (recipientId: string) => {
-    if (!user) return;
     setSendingTo(recipientId);
+
+    if (isDemoMode()) {
+      addDemoConnection(recipientId);
+      setConnectionStatuses((prev) => ({ ...prev, [recipientId]: 'pending_sent' }));
+      setSendingTo(null);
+      return;
+    }
+
+    if (!user) return;
 
     const { error } = await supabase.from('connections').insert({
       requester_id: user.id,
@@ -181,11 +217,10 @@ export default function CampusRadarPage() {
                           return (
                             <span
                               key={interest}
-                              className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                                isShared
-                                  ? 'bg-[--color-primary] text-white'
-                                  : 'bg-[--color-bg-warm] text-[--color-steel] opacity-60'
-                              }`}
+                              className={`text-xs px-2 py-0.5 rounded-full font-medium ${isShared
+                                ? 'bg-[--color-primary] text-white'
+                                : 'bg-[--color-bg-warm] text-[--color-steel] opacity-60'
+                                }`}
                             >
                               {interest}
                             </span>
