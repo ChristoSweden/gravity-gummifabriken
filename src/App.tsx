@@ -10,6 +10,7 @@ import ProfilePage from './pages/ProfilePage';
 import ChatPage from './pages/ChatPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { Analytics } from '@vercel/analytics/react';
 
 function RootRedirect() {
   const { user, loading } = useAuth();
@@ -81,6 +82,7 @@ export default function App() {
   return (
     <AuthProvider>
       <AppLayout />
+      <Analytics />
     </AuthProvider>
   );
 }
