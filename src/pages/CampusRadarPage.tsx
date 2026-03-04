@@ -8,6 +8,8 @@ interface Profile {
   id: string;
   full_name: string;
   interests: string[];
+  profession?: string;
+  company?: string;
 }
 
 interface ConnectionStatus {
@@ -58,7 +60,7 @@ export default function CampusRadarPage() {
       // Fetch all profiles
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('id, full_name, interests');
+        .select('id, full_name, interests, profession, company');
 
       if (!profiles) {
         setLoading(false);
@@ -202,30 +204,38 @@ export default function CampusRadarPage() {
                       {match.full_name?.charAt(0) || '?'}
                     </div>
                     <div className="flex-grow">
-                      <div className="flex justify-between items-start">
-                        <h4 className="text-lg font-brand font-bold">{match.full_name}</h4>
-                        <span className="text-sm font-bold text-[--color-accent]">
-                          {match.overlap.length} shared
-                        </span>
+                      <div className="flex justify-between items-center mb-1">
+                        <div>
+                          <h4 className="text-lg font-brand font-bold text-[--color-text-primary]">
+                            {match.full_name}
+                          </h4>
+                          {(match.profession || match.company) && (
+                            <p className="text-xs text-[--color-steel] opacity-70">
+                              {match.profession}{match.profession && match.company ? ' • ' : ''}{match.company}
+                            </p>
+                          )}
+                        </div>
+                        <div className="bg-[--color-cream] px-3 py-1 rounded-lg border border-[--color-mist]">
+                          <span className="text-sm font-bold text-[--color-primary]">
+                            {Math.round((match.overlap.length / (userProfile?.interests?.length || 1)) * 100)}%
+                          </span>
+                        </div>
                       </div>
 
-                      <div className="flex flex-wrap gap-1.5 mt-2">
-                        {(match.interests || []).map((interest) => {
-                          const isShared = match.overlap
-                            .map((i) => i.toLowerCase())
-                            .includes(interest.toLowerCase());
-                          return (
-                            <span
-                              key={interest}
-                              className={`text-xs px-2 py-0.5 rounded-full font-medium ${isShared
-                                ? 'bg-[--color-primary] text-white'
-                                : 'bg-[--color-bg-warm] text-[--color-steel] opacity-60'
-                                }`}
-                            >
-                              {interest}
-                            </span>
-                          );
-                        })}
+                      <div className="flex flex-wrap gap-1.5 mt-3">
+                        {match.overlap.slice(0, 3).map((interest) => (
+                          <span
+                            key={interest}
+                            className="text-[10px] uppercase tracking-wider bg-[--color-primary] text-white px-2 py-0.5 rounded-md font-bold"
+                          >
+                            {interest}
+                          </span>
+                        ))}
+                        {match.overlap.length > 3 && (
+                          <span className="text-[10px] text-[--color-steel] opacity-50 font-bold self-center">
+                            +{match.overlap.length - 3} MORE
+                          </span>
+                        )}
                       </div>
 
                       <div className="mt-4 flex justify-end">
