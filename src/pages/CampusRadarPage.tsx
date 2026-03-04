@@ -24,64 +24,57 @@ export default function CampusRadarPage() {
   const [loading, setLoading] = useState(true);
   const [sendingTo, setSendingTo] = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchData = React.useCallback(async () => {
     if (!user) return;
+    setLoading(true);
 
-    const fetchData = async () => {
-      setLoading(true);
+    if (isDemo) {
+      const me = getDemoProfile();
+      const others = MOCK_USERS;
+      setUserProfile(me as any);
 
-      if (isDemo) {
-        const me = getDemoProfile();
-        const others = MOCK_USERS;
-        setUserProfile(me as any);
-
-        const myInterests = new Set(me.interests.map((i) => i.toLowerCase()));
-        const withOverlap = others
-          .map((p) => {
-            const overlap = (p.interests || []).filter((i) =>
-              myInterests.has(i.toLowerCase())
-            );
-            return { ...p, overlap };
-          })
-          .filter((p) => p.overlap.length > 0)
-          .sort((a, b) => b.overlap.length - a.overlap.length);
-
-        setMatches(withOverlap as any);
-
-        const statuses: ConnectionStatus = {};
-        others.forEach((p) => {
-          statuses[p.id] = isConnectedInDemo(p.id);
-        });
-        setConnectionStatuses(statuses);
-        setLoading(false);
-        return;
-      }
-
-      // Fetch all profiles
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, full_name, interests, profession, company');
-
-      if (!profiles) {
-        setLoading(false);
-        return;
-      }
-
-      const me = profiles.find((p) => p.id === user.id);
-      const others = profiles.filter((p) => p.id !== user.id);
-      setUserProfile(me || null);
-
-      if (!me?.interests) {
-        setLoading(false);
-        return;
-      }
-
-      // Compute overlap and sort
-      const myInterests = new Set(me.interests.map((i) => i.toLowerCase()));
+      const myInterestsSet = new Set(me.interests.map((i) => i.toLowerCase()));
       const withOverlap = others
         .map((p) => {
           const overlap = (p.interests || []).filter((i) =>
-            myInterests.has(i.toLowerCase())
+            myInterestsSet.has(i.toLowerCase())
+          );
+          return { ...p, overlap };
+        })
+        .filter((p) => p.overlap.length > 0)
+        .sort((a, b) => b.overlap.length - a.overlap.length);
+
+      setMatches(withOverlap as any);
+
+      const statuses: ConnectionStatus = {};
+      others.forEach((p) => {
+        statuses[p.id] = isConnectedInDemo(p.id);
+      });
+      setConnectionStatuses(statuses);
+      setLoading(false);
+      return;
+    }
+
+    const { data: profiles, error: pError } = await supabase
+      .from('profiles')
+      .select('id, full_name, interests, profession, company, is_incognito');
+
+    if (pError || !profiles) {
+      setLoading(false);
+      return;
+    }
+
+    const me = profiles.find((p) => p.id === user.id);
+    const others = profiles.filter((p) => p.id !== user.id && !p.is_incognito);
+
+    setUserProfile(me || null);
+
+    if (me?.interests) {
+      const myInterestsSet = new Set(me.interests.map((i) => i.toLowerCase()));
+      const withOverlap = others
+        .map((p) => {
+          const overlap = (p.interests || []).filter((i) =>
+            myInterestsSet.has(i.toLowerCase())
           );
           return { ...p, overlap };
         })
@@ -89,29 +82,29 @@ export default function CampusRadarPage() {
         .sort((a, b) => b.overlap.length - a.overlap.length);
 
       setMatches(withOverlap);
+    }
 
-      // Fetch connection statuses
-      const { data: connections } = await supabase
-        .from('connections')
-        .select('*')
-        .or(`requester_id.eq.${user.id},recipient_id.eq.${user.id}`);
+    const { data: connections } = await supabase
+      .from('connections')
+      .select('*')
+      .or(`requester_id.eq.${user.id},recipient_id.eq.${user.id}`);
 
-      const statuses: ConnectionStatus = {};
-      (connections || []).forEach((c: any) => {
-        const otherId = c.requester_id === user.id ? c.recipient_id : c.requester_id;
-        if (c.status === 'accepted') {
-          statuses[otherId] = 'accepted';
-        } else if (c.status === 'pending') {
-          statuses[otherId] = c.requester_id === user.id ? 'pending_sent' : 'pending_received';
-        }
-      });
-      setConnectionStatuses(statuses);
-      setLoading(false);
-    };
+    const statuses: ConnectionStatus = {};
+    (connections || []).forEach((c: any) => {
+      const otherId = c.requester_id === user.id ? c.recipient_id : c.requester_id;
+      if (c.status === 'accepted') {
+        statuses[otherId] = 'accepted';
+      } else if (c.status === 'pending') {
+        statuses[otherId] = c.requester_id === user.id ? 'pending_sent' : 'pending_received';
+      }
+    });
+    setConnectionStatuses(statuses);
+    setLoading(false);
+  }, [user, isDemo]);
 
+  useEffect(() => {
     fetchData();
 
-    // Listen for realtime profile changes
     const channel = supabase
       .channel('radar-profiles')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
@@ -125,7 +118,7 @@ export default function CampusRadarPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [fetchData]);
 
   const sendConnectionRequest = async (recipientId: string) => {
     setSendingTo(recipientId);

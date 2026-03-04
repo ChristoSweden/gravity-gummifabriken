@@ -10,6 +10,8 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   intent TEXT,
   gps_enabled BOOLEAN DEFAULT true,
   notifications_enabled BOOLEAN DEFAULT true,
+  is_incognito BOOLEAN DEFAULT false,
+  visibility_setting TEXT DEFAULT 'All of Gummifabriken',
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -18,9 +20,9 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
 -- Policies
-CREATE POLICY "Public profiles are viewable by everyone."
+CREATE POLICY "Public profiles are viewable by everyone if not incognito."
   ON public.profiles FOR SELECT
-  USING ( true );
+  USING ( is_incognito = false OR auth.uid() = id );
 
 CREATE POLICY "Users can insert their own profile."
   ON public.profiles FOR INSERT

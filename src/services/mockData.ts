@@ -3,7 +3,7 @@ export interface Profile {
     full_name: string;
     interests: string[];
     avatar_url?: string;
-    headline?: string;
+    profession?: string;
     company?: string;
 }
 
@@ -28,35 +28,35 @@ export const MOCK_USERS: Profile[] = [
         id: 'user-1',
         full_name: 'Dr. Evelyn Reed',
         interests: ['AI / Machine Learning', 'Health Tech', 'Sustainability', 'SaaS'],
-        headline: 'AI Architect',
+        profession: 'AI Architect',
         company: 'Design Studio',
     },
     {
         id: 'user-2',
         full_name: 'Marcus Chen',
         interests: ['AI / Machine Learning', 'Cybersecurity', 'SaaS', 'Fintech'],
-        headline: 'Data Scientist',
+        profession: 'Data Scientist',
         company: 'TechCorp',
     },
     {
         id: 'user-3',
         full_name: 'Anya Petrova',
         interests: ['UX Design', 'Creative Arts', 'E-commerce', 'Sustainability'],
-        headline: 'Product Manager',
+        profession: 'Product Manager',
         company: 'Flow.ai',
     },
     {
         id: 'user-4',
         full_name: 'Julian Wright',
         interests: ['Fintech', 'SaaS', 'Clean Energy', 'AI / Machine Learning'],
-        headline: 'Venture Capitalist',
+        profession: 'Venture Capitalist',
         company: 'Seed Fund',
     },
     {
         id: 'user-5',
         full_name: 'Lars Svensson',
         interests: ['Manufacturing', 'Robotics', 'Supply Chain', 'IoT'],
-        headline: 'Operations Manager',
+        profession: 'Operations Manager',
         company: 'Gummifabriken',
     },
 ];
@@ -65,7 +65,7 @@ export const MOCK_ME: Profile = {
     id: 'me-demo',
     full_name: 'Demo User',
     interests: [],
-    headline: '',
+    profession: '',
     company: '',
 };
 
@@ -74,7 +74,7 @@ let _demoInterests: string[] = [];
 let _demoConnections: Connection[] = [];
 let _demoMessages: Message[] = [];
 let _demoName = 'Demo User';
-let _demoHeadline = '';
+let _demoProfession = '';
 let _demoCompany = '';
 
 export function getDemoProfile(): Profile {
@@ -82,14 +82,14 @@ export function getDemoProfile(): Profile {
         ...MOCK_ME,
         full_name: _demoName,
         interests: [..._demoInterests],
-        headline: _demoHeadline,
+        profession: _demoProfession,
         company: _demoCompany,
     };
 }
 
-export function setDemoProfile(name: string, headline: string, company: string) {
+export function setDemoProfile(name: string, profession: string, company: string) {
     _demoName = name;
-    _demoHeadline = headline;
+    _demoProfession = profession;
     _demoCompany = company;
 }
 

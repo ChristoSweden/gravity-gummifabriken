@@ -4,7 +4,16 @@
       "Bash(wc -l src/**/*.tsx src/**/*.ts src/*.tsx src/*.ts)",
       "Bash(git init)",
       "Bash(git branch -M main)",
-      "Bash(git add -A)"
+      "Bash(git add -A)",
+      "Bash(git commit:*)",
+      "Bash(gh repo create ChristoSweden/gravity-gummifabriken --public --source=. --push --description \"Proximity networking app for Gummifabriken, Värnamo — interests-based matching, connections, and messaging\")",
+      "Bash(npx tsc --noEmit)",
+      "Bash(npx vite build)",
+      "Bash(git remote set-url origin https://github.com/ChristoSweden/gravity-gummifabriken.git)",
+      "Bash(git add src/App.tsx src/components/Navbar.tsx src/components/ProtectedRoute.tsx src/contexts/AuthContext.tsx src/pages/CampusRadarPage.tsx src/pages/ChatPage.tsx src/pages/ConnectionsPage.tsx src/pages/LoginPage.tsx src/pages/OnboardingPage.tsx src/pages/ProfilePage.tsx src/pages/RegisterPage.tsx src/pages/LandingPage.tsx src/services/supabaseService.ts src/services/mockData.ts src/index.css)",
+      "Bash(npm i @vercel/analytics)",
+      "Bash(git add src/index.css src/pages/OnboardingPage.tsx src/pages/CampusRadarPage.tsx src/pages/ConnectionsPage.tsx src/pages/ChatPage.tsx src/pages/ProfilePage.tsx)",
+      "Bash(npx vite --port 5173)"
     ]
   }
 }
