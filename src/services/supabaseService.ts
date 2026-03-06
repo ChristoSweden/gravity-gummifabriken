@@ -1,19 +1,26 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder-url.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-key';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+if (import.meta.env.PROD && (!supabaseUrl || !supabaseAnonKey)) {
+  throw new Error('Supabase URL and Anon Key must be provided in production environment.');
+}
 
 // Demo mode is activated by user action, stored in sessionStorage
 export function isDemoMode(): boolean {
-  return sessionStorage.getItem('gravity_demo_mode') === 'true';
+  return typeof window !== 'undefined' && sessionStorage.getItem('gravity_demo_mode') === 'true';
 }
 
 export function enterDemoMode() {
-  sessionStorage.setItem('gravity_demo_mode', 'true');
+  if (typeof window !== 'undefined') sessionStorage.setItem('gravity_demo_mode', 'true');
 }
 
 export function exitDemoMode() {
-  sessionStorage.removeItem('gravity_demo_mode');
+  if (typeof window !== 'undefined') sessionStorage.removeItem('gravity_demo_mode');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(
+  supabaseUrl || 'https://placeholder.supabase.co',
+  supabaseAnonKey || 'placeholder'
+);

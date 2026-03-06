@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabaseService';
 import { setDemoInterests, setDemoProfile } from '../services/mockData';
+import { APP_CONFIG } from '../config/appConfig';
+import { motion, AnimatePresence } from 'motion/react';
 
 const INTEREST_SUGGESTIONS = [
   'Sustainability', 'UX Design', 'Manufacturing', 'Health Tech',
@@ -17,8 +19,9 @@ export default function OnboardingPage() {
   const { user, isDemo, enterDemoMode } = useAuth();
   const navigate = useNavigate();
 
-  // Step 1 = Proximity, Step 2 = Interests, Step 3 = Profile, Step 4 = Signup
+  // PRD order: Step 1 Proximity, Step 2 Interests, Step 3 Profile, Step 4 Signup
   const [step, setStep] = useState(1);
+  const [direction, setDirection] = useState(0);
 
   // Step 1: Proximity
   const [gpsEnabled, setGpsEnabled] = useState(true);
@@ -43,10 +46,11 @@ export default function OnboardingPage() {
   const [signupMessage, setSignupMessage] = useState<string | null>(null);
 
   const totalSteps = user ? 3 : 4;
+  const displayStep = user ? step : step;
 
   const toggleInterest = (interest: string) => {
     setSelectedInterests((prev) => {
-      if (prev.includes(interest)) return prev.filter((i: string) => i !== interest);
+      if (prev.includes(interest)) return prev.filter((i) => i !== interest);
       if (prev.length >= MAX_INTERESTS) return prev;
       return [...prev, interest];
     });
@@ -60,25 +64,48 @@ export default function OnboardingPage() {
   };
 
   const removeInterest = (interest: string) => {
-    setSelectedInterests((prev) => prev.filter((i: string) => i !== interest));
+    setSelectedInterests((prev) => prev.filter((i) => i !== interest));
   };
 
   const handleBack = () => {
-    if (step === 1) navigate('/');
-    else setStep(step - 1);
+    if (step === 1) {
+      navigate('/');
+    } else {
+      setDirection(-1);
+      setStep(step - 1);
+    }
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     setError(null);
+
     if (step === 1) {
+      // Proximity — always valid
+      setDirection(1);
       setStep(2);
-    } else if (step === 2 && selectedInterests.length >= 3) {
-      setStep(3);
-    } else if (step === 3 && fullName.trim() && profession.trim()) {
-      if (user) {
-        handleSaveAndNavigate();
+    } else if (step === 2) {
+      if (selectedInterests.length >= 3) {
+        setDirection(1);
+        setStep(3);
       } else {
-        setStep(4);
+        setError('Select at least 3 interests to continue.');
+      }
+    } else if (step === 3) {
+      if (fullName.trim() && profession.trim()) {
+        if (user || isDemo) {
+          await handleSaveAndNavigate();
+        } else {
+          setDirection(1);
+          setStep(4);
+        }
+      } else {
+        setError('Name and profession are required.');
+      }
+    } else if (step === 4) {
+      if (email.trim() && password.length >= 6) {
+        await handleSaveAndNavigate();
+      } else {
+        setError('Enter a valid email and password (min 6 characters).');
       }
     }
   };
@@ -86,48 +113,53 @@ export default function OnboardingPage() {
   const handleSaveAndNavigate = async () => {
     setSaving(true);
     setError(null);
+
+    // Demo mode
     if (isDemo) {
       setDemoInterests(selectedInterests);
-      setDemoProfile(fullName, profession, company);
-      setTimeout(() => navigate('/radar'), 400);
+      setDemoProfile(fullName, profession, company, intent);
+      setTimeout(() => navigate('/radar'), 300);
       return;
     }
-    if (!user) return;
-    const { error: err } = await supabase.from('profiles').upsert({
-      id: user.id, full_name: fullName, profession: profession, company,
-      interests: selectedInterests, intent,
-      gps_enabled: gpsEnabled, notifications_enabled: notificationsEnabled,
-      updated_at: new Date().toISOString(),
-    });
-    if (err) { setError(err.message); setSaving(false); return; }
-    navigate('/radar');
-  };
 
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true); setError(null); setSignupMessage(null);
+    // Authenticated user updating profile
+    if (user) {
+      const { error: err } = await supabase.from('profiles').upsert({
+        id: user.id, full_name: fullName, profession, company,
+        interests: selectedInterests, intent,
+        gps_enabled: gpsEnabled, notifications_enabled: notificationsEnabled,
+        updated_at: new Date().toISOString(),
+      });
+      if (err) { setError(err.message); setSaving(false); return; }
+      navigate('/radar');
+      return;
+    }
+
+    // New user signup
     const { data, error: err } = await supabase.auth.signUp({
       email, password,
-      options: { data: { full_name: fullName, profession: profession, company } },
+      options: { data: { full_name: fullName, profession, company } },
     });
     if (err) { setError(err.message); setSaving(false); return; }
+
     if (data.user) {
       const { error: profileErr } = await supabase.from('profiles').upsert({
-        id: data.user.id, full_name: fullName, profession: profession, company,
+        id: data.user.id, full_name: fullName, profession, company,
         interests: selectedInterests, intent,
         gps_enabled: gpsEnabled, notifications_enabled: notificationsEnabled,
         updated_at: new Date().toISOString(),
       });
       if (profileErr) { setError(profileErr.message); setSaving(false); return; }
     }
-    setSignupMessage('Account created! Check your email to verify, then you\'ll land on the radar.');
+
+    setSignupMessage('Check your email for a verification link.');
     setSaving(false);
   };
 
   const handleSkipToDemo = () => {
     enterDemoMode();
     if (selectedInterests.length >= 3) setDemoInterests(selectedInterests);
-    if (fullName.trim()) setDemoProfile(fullName, profession, company);
+    if (fullName.trim()) setDemoProfile(fullName, profession, company, intent);
     navigate('/radar');
   };
 
@@ -135,245 +167,331 @@ export default function OnboardingPage() {
     if (step === 1) return true;
     if (step === 2) return selectedInterests.length >= 3;
     if (step === 3) return fullName.trim() && profession.trim();
+    if (step === 4) return email.trim() && password.length >= 6;
     return false;
   };
 
-  // Shared styles
-  const copper = '#B87333';
-  const steel = '#4A4A4A';
-  const mist = '#EDE8E0';
-  const cream = '#F9F5F0';
-  const dark = '#1A1A1A';
-
-  const inputStyle: React.CSSProperties = {
-    border: `1px solid ${mist}`, color: steel, backgroundColor: '#fff',
-    width: '100%', padding: '14px', borderRadius: '12px', outline: 'none',
-    fontSize: '15px',
+  const stepLabel = () => {
+    if (step === 1) return 'Interests';
+    if (step === 2) return 'Profile';
+    if (step === 3 && !user && !isDemo) return 'Create Account';
+    return 'Radar';
   };
-  const labelStyle: React.CSSProperties = {
-    display: 'block', fontSize: '11px', fontWeight: 700, color: steel,
-    textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: '8px',
+
+  const variants = {
+    enter: (dir: number) => ({ x: dir > 0 ? 40 : -40, opacity: 0 }),
+    center: { x: 0, opacity: 1 },
+    exit: (dir: number) => ({ x: dir < 0 ? 40 : -40, opacity: 0 }),
   };
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: cream }}>
+    <div className="min-h-screen bg-[--color-bg-warm] flex flex-col">
       {/* Header */}
-      <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 16px 8px', maxWidth: '480px', margin: '0 auto', width: '100%' }}>
-        <button onClick={handleBack} style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', background: 'none', cursor: 'pointer', color: steel }}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+      <div className="flex items-center justify-between px-6 py-5 max-w-lg mx-auto w-full">
+        <button
+          onClick={handleBack}
+          className="w-10 h-10 flex items-center justify-center text-[--color-steel-light] hover:text-[--color-text-primary] transition-colors rounded-lg"
+          aria-label="Go back"
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
         </button>
-        <span style={{ fontFamily: '"Playfair Display", serif', fontSize: '20px', fontWeight: 700, color: copper }}>Gravity.</span>
+        <span className="font-serif text-2xl text-[--color-text-header]">{APP_CONFIG.APP_NAME}.</span>
+        <div className="w-10" />
       </div>
 
-      {/* Step indicator */}
-      <div style={{ flexShrink: 0, padding: '0 16px 16px', maxWidth: '480px', margin: '0 auto', width: '100%' }}>
-        <p style={{ fontSize: '11px', fontWeight: 700, color: steel, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>
-          Step {step} of {totalSteps}
-        </p>
-        <div style={{ display: 'flex', gap: '6px' }}>
+      {/* Progress */}
+      <div className="px-6 pb-5 max-w-lg mx-auto w-full">
+        <p className="section-label mb-3">Step {displayStep} of {totalSteps}</p>
+        <div className="flex gap-1.5">
           {Array.from({ length: totalSteps }, (_, i) => (
-            <div key={i} style={{ flex: 1, height: '4px', borderRadius: '4px', backgroundColor: i < step ? copper : mist, transition: 'background-color 0.3s' }} />
+            <div
+              key={i}
+              className={`flex-1 h-1 rounded-full transition-all duration-500 ${
+                i < step ? 'bg-[--color-primary]' : 'bg-[--color-sand]'
+              }`}
+            />
           ))}
         </div>
       </div>
 
-      {/* Scrollable content */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '0 16px' }}>
-        <div style={{ maxWidth: '480px', margin: '0 auto', width: '100%', textAlign: 'center' }}>
+      {/* Step Content */}
+      <div className="flex-1 relative overflow-hidden">
+        <AnimatePresence initial={false} custom={direction} mode="popLayout">
+          <motion.div
+            key={step}
+            custom={direction}
+            variants={variants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className="px-6 pt-2 pb-36 max-w-lg mx-auto w-full overflow-y-auto content-container"
+            style={{ minHeight: 0 }}
+          >
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-[--color-error]/5 border border-[--color-error]/15 px-4 py-3 rounded-[--radius-md] mb-6"
+              >
+                <p className="text-[--color-error] text-sm">{error}</p>
+              </motion.div>
+            )}
 
-          {/* STEP 1: Proximity */}
-          {step === 1 && (
-            <div style={{ textAlign: 'left' }}>
-              <h1 style={{ fontFamily: '"Playfair Display", serif', fontSize: '32px', fontWeight: 700, color: dark, marginBottom: '8px', textAlign: 'center' }}>
-                Proximity Settings
-              </h1>
-              <p style={{ fontSize: '15px', color: steel, opacity: 0.7, marginBottom: '32px', textAlign: 'center' }}>
-                Detect when you're near Gummifabriken
-              </p>
-
-              {/* Proximity toggles */}
-              {[
-                { label: 'GPS Location', desc: "Detect when you're near the building", value: gpsEnabled, toggle: () => setGpsEnabled(!gpsEnabled) },
-                { label: 'Notifications', desc: 'Alerts for incoming handshake requests', value: notificationsEnabled, toggle: () => setNotificationsEnabled(!notificationsEnabled) },
-              ].map((item) => (
-                <div key={item.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px', backgroundColor: '#fff', borderRadius: '16px', border: `1px solid ${mist}`, marginBottom: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-                  <div style={{ textAlign: 'left' }}>
-                    <p style={{ fontWeight: 700, fontSize: '16px', color: dark }}>{item.label}</p>
-                    <p style={{ fontSize: '13px', color: steel, opacity: 0.6, marginTop: 4 }}>{item.desc}</p>
-                  </div>
-                  <button onClick={item.toggle} style={{ position: 'relative', width: 52, height: 30, borderRadius: 15, border: 'none', cursor: 'pointer', backgroundColor: item.value ? copper : '#d1d5db', transition: 'background-color 0.2s', flexShrink: 0 }}>
-                    <span style={{ position: 'absolute', top: 3, left: 3, width: 24, height: 24, borderRadius: 12, backgroundColor: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.15)', transition: 'transform 0.2s', transform: item.value ? 'translateX(22px)' : 'translateX(0)' }} />
-                  </button>
-                </div>
-              ))}
-
-              <div style={{ marginTop: '32px', padding: '20px', borderRadius: '16px', backgroundColor: '#fff', border: `1px solid ${mist}`, display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
-                <div style={{ padding: '8px', backgroundColor: cream, borderRadius: '8px', color: copper }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" /></svg>
-                </div>
-                <p style={{ fontSize: '14px', color: steel, lineHeight: 1.5 }}>
-                  <strong>Privacy First</strong>: Your exact location is never shared with anyone. We only detect if you're in the building range to enable networking.
+            {/* Step 1: Proximity */}
+            {step === 1 && (
+              <div>
+                <h1 className="font-serif text-3xl text-[--color-text-header] mb-2">Proximity</h1>
+                <p className="text-sm text-[--color-text-secondary] mb-8">
+                  Enable location detection for {APP_CONFIG.LOCATION_NAME}
                 </p>
-              </div>
-            </div>
-          )}
 
-          {/* STEP 2: Interests */}
-          {step === 2 && (
-            <>
-              <h1 style={{ fontFamily: '"Playfair Display", serif', fontSize: '32px', fontWeight: 700, color: dark, marginBottom: '8px', textTransform: 'uppercase' }}>
-                WHAT DRIVES YOU?
-              </h1>
-              <p style={{ fontSize: '16px', color: steel, opacity: 0.7, marginBottom: '32px' }}>
-                Pick at least 3 professional interests. This is how we find your people.
-              </p>
-
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', justifyContent: 'center', marginBottom: '32px' }}>
-                {INTEREST_SUGGESTIONS.map((interest) => {
-                  const sel = selectedInterests.includes(interest);
-                  return (
-                    <button
-                      key={interest}
-                      onClick={() => toggleInterest(interest)}
-                      disabled={!sel && selectedInterests.length >= MAX_INTERESTS}
-                      style={{
-                        padding: '12px 24px', borderRadius: '24px', fontSize: '15px', fontWeight: 700,
-                        border: '2px solid #000', cursor: 'pointer',
-                        backgroundColor: sel ? '#000' : '#fff', color: sel ? '#fff' : '#000',
-                        transition: 'all 0.2s',
-                        transform: sel ? 'scale(1.05)' : 'scale(1)',
-                      }}
+                <div className="space-y-3">
+                  {[
+                    { label: 'GPS Location', desc: 'Detect proximity to the building', value: gpsEnabled, toggle: () => setGpsEnabled(!gpsEnabled) },
+                    { label: 'Notifications', desc: 'Get notified on connection requests', value: notificationsEnabled, toggle: () => setNotificationsEnabled(!notificationsEnabled) },
+                  ].map((item, i) => (
+                    <div
+                      key={item.label}
+                      className="card flex items-center justify-between p-5 animate-fade-in"
+                      style={{ animationDelay: `${i * 0.1}s` }}
                     >
-                      {interest}
-                    </button>
-                  );
-                })}
-              </div>
+                      <div>
+                        <p className="font-semibold text-[--color-text-primary] text-[15px]">{item.label}</p>
+                        <p className="text-[13px] text-[--color-text-secondary] mt-0.5">{item.desc}</p>
+                      </div>
+                      <button
+                        onClick={item.toggle}
+                        className={`relative w-12 h-7 rounded-full transition-colors duration-200 flex-shrink-0 ml-4 ${item.value ? 'bg-[--color-primary]' : 'bg-[--color-sand]'}`}
+                        aria-label={`Toggle ${item.label}`}
+                      >
+                        <div className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-sm transition-transform duration-200 ${item.value ? 'translate-x-5' : 'translate-x-0'}`} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
 
-              <div style={{ marginBottom: '24px' }}>
-                <p style={{ fontSize: '16px', fontWeight: 700, color: '#16a34a' }}>
-                  {selectedInterests.length} selected
+                <p className="text-[13px] text-[--color-text-secondary] mt-6 text-center italic">
+                  Your exact location is never shared — only proximity.
                 </p>
               </div>
+            )}
 
-              {error && (
-                <div style={{ backgroundColor: '#fef2f2', borderLeft: `4px solid #ef4444`, padding: '16px', borderRadius: '8px', textAlign: 'left', marginBottom: '24px' }}>
-                  <p style={{ color: '#b91c1c', fontSize: '14px', fontWeight: 500 }}>{error}</p>
-                </div>
-              )}
-            </>
-          )}
+            {/* Step 2: Interests */}
+            {step === 2 && (
+              <div>
+                <h1 className="font-serif text-3xl text-[--color-text-header] mb-2">Interests</h1>
+                <p className="text-sm text-[--color-text-secondary] mb-8">
+                  Select 3–10 topics that define your work
+                </p>
 
-          {/* STEP 3: Profile */}
-          {step === 3 && (
-            <div style={{ textAlign: 'left' }}>
-              <h1 style={{ fontFamily: '"Playfair Display", serif', fontSize: '32px', fontWeight: 700, color: dark, marginBottom: '8px' }}>
-                Professional Profile
-              </h1>
-              <p style={{ fontSize: '15px', color: steel, opacity: 0.7, marginBottom: '32px' }}>
-                Let others know who you are and what you're looking for.
-              </p>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', marginBottom: '32px' }}>
-                <div>
-                  <label style={labelStyle}>Full Name</label>
-                  <input type="text" placeholder="Your name" style={{ ...inputStyle, padding: '18px' }} value={fullName} onChange={(e) => setFullName(e.target.value)} />
-                </div>
-                <div>
-                  <label style={labelStyle}>Profession</label>
-                  <input type="text" placeholder="e.g. Founder, Designer" style={{ ...inputStyle, padding: '18px' }} value={profession} onChange={(e) => setProfession(e.target.value)} />
-                </div>
-                <div>
-                  <label style={labelStyle}>Company / Organization</label>
-                  <input type="text" placeholder="Where you work" style={{ ...inputStyle, padding: '18px' }} value={company} onChange={(e) => setCompany(e.target.value)} />
-                </div>
-                <div>
-                  <label style={labelStyle}>Professional Intent (Bio)</label>
-                  <textarea
-                    placeholder="What are you working on? What do you need help with?"
-                    style={{ ...inputStyle, height: '120px', resize: 'none', padding: '18px' }}
-                    value={intent} onChange={(e) => setIntent(e.target.value)}
+                {/* Custom input */}
+                <div className="relative mb-6">
+                  <input
+                    type="text"
+                    placeholder="Add a custom interest..."
+                    className="input-field pr-14"
+                    value={customInterest}
+                    onChange={(e) => setCustomInterest(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addCustomInterest())}
                   />
+                  <button
+                    onClick={addCustomInterest}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-[--color-primary] text-white rounded-lg flex items-center justify-center hover:bg-[--color-primary-dark] transition-colors"
+                    aria-label="Add custom interest"
+                    type="button"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+                  </button>
+                </div>
+
+                {/* Suggestions */}
+                <div className="flex flex-wrap gap-2 mb-8">
+                  {INTEREST_SUGGESTIONS.map((interest, i) => {
+                    const sel = selectedInterests.includes(interest);
+                    return (
+                      <button
+                        key={interest}
+                        type="button"
+                        onClick={() => toggleInterest(interest)}
+                        disabled={!sel && selectedInterests.length >= MAX_INTERESTS}
+                        className={`px-4 py-2.5 rounded-full text-[13px] font-medium border transition-all animate-fade-in ${
+                          sel
+                            ? 'bg-[--color-primary] border-[--color-primary] text-white'
+                            : 'bg-white border-[--color-sand] text-[--color-text-primary] hover:border-[--color-primary-light] disabled:opacity-40'
+                        }`}
+                        style={{ animationDelay: `${i * 0.02}s` }}
+                      >
+                        {interest}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Selected */}
+                <AnimatePresence>
+                  {selectedInterests.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="border-t border-[--color-sand] pt-5"
+                    >
+                      <p className="section-label mb-3">
+                        Selected ({selectedInterests.length}/{MAX_INTERESTS})
+                        {selectedInterests.length < 3 && (
+                          <span className="text-[--color-primary] ml-2">
+                            {3 - selectedInterests.length} more needed
+                          </span>
+                        )}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedInterests.map((interest) => (
+                          <motion.span
+                            layout
+                            initial={{ scale: 0.8, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.8, opacity: 0 }}
+                            key={interest}
+                            className="inline-flex items-center gap-1.5 bg-[--color-primary]/10 text-[--color-primary-dark] px-3 py-1.5 rounded-full text-[13px] font-medium border border-[--color-primary]/15"
+                          >
+                            {interest}
+                            <button
+                              type="button"
+                              onClick={() => removeInterest(interest)}
+                              className="hover:text-[--color-error] transition-colors"
+                              aria-label={`Remove ${interest}`}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                            </button>
+                          </motion.span>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
+
+            {/* Step 3: Profile */}
+            {step === 3 && (
+              <div>
+                <h1 className="font-serif text-3xl text-[--color-text-header] mb-2">Profile</h1>
+                <p className="text-sm text-[--color-text-secondary] mb-8">
+                  How you appear on the radar
+                </p>
+
+                <div className="space-y-5">
+                  <div className="animate-fade-in" style={{ animationDelay: '0.05s' }}>
+                    <label className="section-label block mb-2">Full Name *</label>
+                    <input type="text" placeholder="Your name" className="input-field" value={fullName} onChange={(e) => setFullName(e.target.value)} />
+                  </div>
+                  <div className="animate-fade-in" style={{ animationDelay: '0.1s' }}>
+                    <label className="section-label block mb-2">Profession *</label>
+                    <input type="text" placeholder="e.g. Software Engineer, UX Designer" className="input-field" value={profession} onChange={(e) => setProfession(e.target.value)} />
+                  </div>
+                  <div className="animate-fade-in" style={{ animationDelay: '0.15s' }}>
+                    <label className="section-label block mb-2">Company</label>
+                    <input type="text" placeholder="Organization (optional)" className="input-field" value={company} onChange={(e) => setCompany(e.target.value)} />
+                  </div>
+                  <div className="animate-fade-in" style={{ animationDelay: '0.2s' }}>
+                    <label className="section-label block mb-2">Intent</label>
+                    <textarea
+                      placeholder="What are you looking for? (optional)"
+                      className="input-field min-h-[80px] resize-none"
+                      value={intent}
+                      onChange={(e) => setIntent(e.target.value)}
+                    />
+                  </div>
                 </div>
               </div>
+            )}
 
-              {error && (
-                <div style={{ backgroundColor: '#fef2f2', borderLeft: `4px solid #ef4444`, padding: '16px', borderRadius: '8px', marginBottom: '24px' }}>
-                  <p style={{ color: '#b91c1c', fontSize: '14px' }}>{error}</p>
-                </div>
-              )}
-            </div>
-          )}
+            {/* Step 4: Signup */}
+            {step === 4 && (
+              <div>
+                <h1 className="font-serif text-3xl text-[--color-text-header] mb-2">Create your account</h1>
+                <p className="text-sm text-[--color-text-secondary] mb-8">
+                  We'll send a verification link to your email.
+                </p>
 
-          {/* STEP 4: Signup */}
-          {step === 4 && !user && (
-            <div style={{ textAlign: 'left' }}>
-              <h1 style={{ fontFamily: '"Playfair Display", serif', fontSize: '32px', fontWeight: 700, color: dark, marginBottom: '8px' }}>
-                Join Gravity
-              </h1>
-              <p style={{ fontSize: '15px', color: steel, opacity: 0.7, marginBottom: '32px' }}>
-                Secure your profile and start connecting.
-              </p>
+                {signupMessage ? (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="card p-8 text-center"
+                  >
+                    <div className="w-14 h-14 bg-[--color-success]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" /></svg>
+                    </div>
+                    <h3 className="font-serif text-xl text-[--color-text-header] mb-2">Check your inbox</h3>
+                    <p className="text-sm text-[--color-text-secondary]">{signupMessage}</p>
+                  </motion.div>
+                ) : (
+                  <div className="space-y-5">
+                    <div className="animate-fade-in" style={{ animationDelay: '0.05s' }}>
+                      <label className="section-label block mb-2">Email</label>
+                      <input
+                        type="email"
+                        placeholder="name@company.com"
+                        className="input-field"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        autoComplete="email"
+                      />
+                    </div>
+                    <div className="animate-fade-in" style={{ animationDelay: '0.1s' }}>
+                      <label className="section-label block mb-2">Password</label>
+                      <input
+                        type="password"
+                        placeholder="Min 6 characters"
+                        className="input-field"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        autoComplete="new-password"
+                      />
+                    </div>
 
-              {signupMessage ? (
-                <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', padding: '32px', borderRadius: '24px', textAlign: 'center', boxShadow: '0 4px 12px rgba(22,163,74,0.08)' }}>
-                  <div style={{ width: 64, height: 64, backgroundColor: '#dcfce7', borderRadius: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+                    <div className="pt-4 text-center">
+                      <button
+                        type="button"
+                        onClick={handleSkipToDemo}
+                        className="text-[13px] text-[--color-text-secondary] hover:text-[--color-primary] transition-colors"
+                      >
+                        Skip — try Demo Mode instead
+                      </button>
+                    </div>
                   </div>
-                  <p style={{ color: '#166534', fontWeight: 700, fontSize: '18px', marginBottom: '8px' }}>Check your email</p>
-                  <p style={{ color: '#16a34a', fontSize: '15px' }}>{signupMessage}</p>
-                </div>
-              ) : (
-                <form onSubmit={handleSignup} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                  <div>
-                    <label style={labelStyle}>Email Address</label>
-                    <input type="email" style={{ ...inputStyle, padding: '18px' }} value={email} onChange={(e) => setEmail(e.target.value)} required />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>Password</label>
-                    <input type="password" style={{ ...inputStyle, padding: '18px' }} value={password} onChange={(e) => setPassword(e.target.value)} minLength={6} required />
-                  </div>
-                  {error && <div style={{ backgroundColor: '#fef2f2', borderLeft: `4px solid #ef4444`, padding: '16px', borderRadius: '8px' }}><p style={{ color: '#b91c1c', fontSize: '14px' }}>{error}</p></div>}
-
-                  <button type="submit" disabled={saving} style={{ width: '100%', padding: '20px', borderRadius: '16px', backgroundColor: copper, color: '#fff', fontWeight: 700, fontSize: '18px', border: 'none', cursor: 'pointer', opacity: saving ? 0.4 : 1, boxShadow: '0 8px 16px rgba(184,115,51,0.2)' }}>
-                    {saving ? 'Creating Account...' : 'Finish Signup'}
-                  </button>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '8px 0' }}>
-                    <div style={{ flex: 1, height: '1px', backgroundColor: mist }} />
-                    <span style={{ fontSize: '13px', color: steel, opacity: 0.5, fontWeight: 700 }}>OR</span>
-                    <div style={{ flex: 1, height: '1px', backgroundColor: mist }} />
-                  </div>
-
-                  <button type="button" onClick={handleSkipToDemo} style={{ width: '100%', padding: '18px', borderRadius: '16px', backgroundColor: '#fff', color: steel, fontWeight: 700, fontSize: '16px', border: `2px solid ${mist}`, cursor: 'pointer' }}>
-                    Continue as Guest
-                  </button>
-                </form>
-              )}
-            </div>
-          )}
-        </div>
+                )}
+              </div>
+            )}
+          </motion.div>
+        </AnimatePresence>
       </div>
 
-      {/* Bottom continue button */}
-      {step < 4 && (
-        <div style={{ flexShrink: 0, padding: '24px', backgroundColor: cream, borderTop: `1px solid ${mist}` }}>
-          <div style={{ maxWidth: '480px', margin: '0 auto' }}>
+      {/* Sticky Bottom Button */}
+      {!signupMessage && (
+        <div className="fixed bottom-0 left-0 right-0 glass-effect border-t border-[--color-sand]/60 px-6 py-5 safe-bottom z-50">
+          <div className="max-w-lg mx-auto">
             <button
+              type="button"
               onClick={handleNext}
               disabled={!canProceed() || saving}
-              style={{
-                width: '100%', padding: '20px', borderRadius: '16px',
-                backgroundColor: copper, color: '#fff',
-                fontWeight: 800, fontSize: '18px', border: 'none', cursor: 'pointer',
-                opacity: (!canProceed() || saving) ? 0.4 : 1,
-                boxShadow: '0 8px 24px rgba(184,115,51,0.25)',
-                transition: 'all 0.2s transform active:scale(0.98)',
-                display: 'block',
-                visibility: 'visible',
-              }}
+              className="btn-primary w-full py-4 text-sm flex items-center justify-center gap-2"
             >
-              {saving ? 'Saving...' : step === 3 && user ? 'Enter the Radar' : 'Proceed'}
+              {saving ? (
+                <>
+                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Creating account...
+                </>
+              ) : step === totalSteps ? (
+                user || isDemo ? 'Continue to Radar' : 'Create Account'
+              ) : (
+                `Continue`
+              )}
             </button>
           </div>
         </div>

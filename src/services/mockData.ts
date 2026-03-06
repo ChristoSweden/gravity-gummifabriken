@@ -5,6 +5,7 @@ export interface Profile {
     avatar_url?: string;
     profession?: string;
     company?: string;
+    intent?: string;
 }
 
 export interface Connection {
@@ -30,6 +31,7 @@ export const MOCK_USERS: Profile[] = [
         interests: ['AI / Machine Learning', 'Health Tech', 'Sustainability', 'SaaS'],
         profession: 'AI Architect',
         company: 'Design Studio',
+        avatar_url: 'https://i.pravatar.cc/150?u=user-1'
     },
     {
         id: 'user-2',
@@ -37,6 +39,7 @@ export const MOCK_USERS: Profile[] = [
         interests: ['AI / Machine Learning', 'Cybersecurity', 'SaaS', 'Fintech'],
         profession: 'Data Scientist',
         company: 'TechCorp',
+        avatar_url: 'https://i.pravatar.cc/150?u=user-2'
     },
     {
         id: 'user-3',
@@ -44,6 +47,7 @@ export const MOCK_USERS: Profile[] = [
         interests: ['UX Design', 'Creative Arts', 'E-commerce', 'Sustainability'],
         profession: 'Product Manager',
         company: 'Flow.ai',
+        avatar_url: 'https://i.pravatar.cc/150?u=user-3'
     },
     {
         id: 'user-4',
@@ -51,6 +55,7 @@ export const MOCK_USERS: Profile[] = [
         interests: ['Fintech', 'SaaS', 'Clean Energy', 'AI / Machine Learning'],
         profession: 'Venture Capitalist',
         company: 'Seed Fund',
+        avatar_url: 'https://i.pravatar.cc/150?u=user-4'
     },
     {
         id: 'user-5',
@@ -58,6 +63,7 @@ export const MOCK_USERS: Profile[] = [
         interests: ['Manufacturing', 'Robotics', 'Supply Chain', 'IoT'],
         profession: 'Operations Manager',
         company: 'Gummifabriken',
+        avatar_url: 'https://i.pravatar.cc/150?u=user-5'
     },
 ];
 
@@ -67,6 +73,7 @@ export const MOCK_ME: Profile = {
     interests: [],
     profession: '',
     company: '',
+    intent: '',
 };
 
 // Mutable state for demo mode
@@ -76,6 +83,8 @@ let _demoMessages: Message[] = [];
 let _demoName = 'Demo User';
 let _demoProfession = '';
 let _demoCompany = '';
+let _demoIntent = '';
+let _idCounter = 0;
 
 export function getDemoProfile(): Profile {
     return {
@@ -84,13 +93,15 @@ export function getDemoProfile(): Profile {
         interests: [..._demoInterests],
         profession: _demoProfession,
         company: _demoCompany,
+        intent: _demoIntent,
     };
 }
 
-export function setDemoProfile(name: string, profession: string, company: string) {
+export function setDemoProfile(name: string, profession: string, company: string, intent?: string) {
     _demoName = name;
     _demoProfession = profession;
     _demoCompany = company;
+    if (intent !== undefined) _demoIntent = intent;
 }
 
 export function getDemoInterests(): string[] {
@@ -106,8 +117,16 @@ export function getDemoConnections(): Connection[] {
 }
 
 export function addDemoConnection(recipientId: string): Connection {
+    // Prevent duplicate connections
+    const existing = _demoConnections.find(c =>
+        (c.requester_id === MOCK_ME.id && c.recipient_id === recipientId) ||
+        (c.requester_id === recipientId && c.recipient_id === MOCK_ME.id)
+    );
+    if (existing) return existing;
+
+    _idCounter++;
     const conn: Connection = {
-        id: `conn-${Date.now()}`,
+        id: `conn-${Date.now()}-${_idCounter}`,
         requester_id: MOCK_ME.id,
         recipient_id: recipientId,
         status: 'pending',
@@ -134,8 +153,9 @@ export function getDemoMessages(userId: string): Message[] {
 }
 
 export function addDemoMessage(recipientId: string, content: string): Message {
+    _idCounter++;
     const msg: Message = {
-        id: `msg-${Date.now()}`,
+        id: `msg-${Date.now()}-${_idCounter}`,
         sender_id: MOCK_ME.id,
         recipient_id: recipientId,
         content,
@@ -158,7 +178,6 @@ export function isConnectedInDemo(userId: string): 'none' | 'pending_sent' | 'pe
 
 // Seed some initial data to make the demo feel alive
 export function seedDemoData() {
-    // Add a pending request FROM user-1 to demo user
     _demoConnections = [
         {
             id: 'conn-seed-1',
@@ -169,4 +188,5 @@ export function seedDemoData() {
         },
     ];
     _demoMessages = [];
+    _idCounter = 0;
 }

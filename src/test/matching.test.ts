@@ -1,20 +1,5 @@
 import { describe, it, expect } from 'vitest';
-
-interface Profile {
-    id: string;
-    interests: string[];
-}
-
-const calculateMatchPercentage = (me: Profile, other: Profile) => {
-    if (!me.interests || !other.interests || me.interests.length === 0) return 0;
-
-    const myInterestsSet = new Set(me.interests.map((i) => i.toLowerCase()));
-    const overlap = other.interests.filter((i) =>
-        myInterestsSet.has(i.toLowerCase())
-    );
-
-    return Math.round((overlap.length / me.interests.length) * 100);
-};
+import { calculateMatchPercentage, getInterestOverlap } from '../utils/matching';
 
 describe('Matching Algorithm', () => {
     it('should calculate 100% match for identical interests', () => {
@@ -35,9 +20,31 @@ describe('Matching Algorithm', () => {
         expect(calculateMatchPercentage(me, other)).toBe(0);
     });
 
+    it('should handle null or undefined interests gracefully', () => {
+        const me = { id: 'me', interests: [] };
+        // @ts-ignore
+        const other = { id: 'other', interests: null };
+        expect(calculateMatchPercentage(me, other)).toBe(0);
+        // @ts-ignore
+        expect(getInterestOverlap(me, other)).toEqual([]);
+    });
+
+    it('should handle mixed case interests correctly', () => {
+        const me = { id: 'me', interests: ['TECH', 'design'] };
+        const other = { id: 'other', interests: ['tech', 'DESIGN'] };
+        expect(calculateMatchPercentage(me, other)).toBe(100);
+        expect(getInterestOverlap(me, other)).toEqual(['tech', 'DESIGN']);
+    });
+
     it('should handle empty interests gracefully', () => {
         const me = { id: 'me', interests: [] };
         const other = { id: 'other', interests: ['Tech'] };
         expect(calculateMatchPercentage(me, other)).toBe(0);
+    });
+
+    it('should return correct overlap list', () => {
+        const me = { id: 'me', interests: ['Tech', 'Design', 'AI'] };
+        const other = { id: 'other', interests: ['tech', 'Cooking', 'AI'] };
+        expect(getInterestOverlap(me, other)).toEqual(['tech', 'AI']);
     });
 });

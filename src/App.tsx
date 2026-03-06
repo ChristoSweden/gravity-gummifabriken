@@ -13,6 +13,7 @@ const ChatPage = lazy(() => import('./pages/ChatPage'));
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { motion, AnimatePresence } from 'motion/react';
 import { Analytics } from '@vercel/analytics/react';
 
 function RootRedirect() {
@@ -25,57 +26,73 @@ function AppLayout() {
   const location = useLocation();
   const isLanding = location.pathname === '/';
   const { user } = useAuth();
-  const showNavbar = isLanding ? false : !!user;
+  const isOnboarding = location.pathname === '/onboarding';
+  const isLogin = location.pathname === '/login';
+  const showNavbar = !isLanding && !isOnboarding && !isLogin && !!user;
 
   return (
-    <div className="min-h-screen bg-[--color-bg-warm] font-sans text-[--color-text-primary]">
+    <div className="min-h-screen bg-[--color-bg-warm] font-sans text-[--color-text-primary] overflow-x-hidden">
       {showNavbar && <Navbar />}
       <ErrorBoundary>
-        <Suspense fallback={
-          <div className="min-h-screen flex items-center justify-center">
-            <div className="animate-pulse font-brand text-xl text-[--color-primary]">Loading Gravity...</div>
-          </div>
-        }>
-          <Routes>
-            <Route path="/" element={<RootRedirect />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/onboarding" element={<OnboardingPage />} />
-            <Route
-              path="/radar"
-              element={
-                <ProtectedRoute>
-                  <CampusRadarPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/connections"
-              element={
-                <ProtectedRoute>
-                  <ConnectionsPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/chat/:userId"
-              element={
-                <ProtectedRoute>
-                  <ChatPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/profile"
-              element={
-                <ProtectedRoute>
-                  <ProfilePage />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="/home" element={<Navigate to="/radar" replace />} />
-            <Route path="/discovery" element={<Navigate to="/radar" replace />} />
-          </Routes>
-        </Suspense>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={location.pathname}
+            initial={{ opacity: 0, x: 10 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -10 }}
+            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            className="flex-1"
+          >
+            <Suspense fallback={
+              <div className="min-h-screen flex items-center justify-center">
+                <div className="text-center">
+                  <div className="w-10 h-10 rounded-full border-2 border-[--color-primary] border-t-transparent animate-spin mx-auto mb-3" />
+                  <p className="text-sm text-[--color-text-secondary]">Loading...</p>
+                </div>
+              </div>
+            }>
+              <Routes location={location}>
+                <Route path="/" element={<RootRedirect />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/onboarding" element={<OnboardingPage />} />
+                <Route
+                  path="/radar"
+                  element={
+                    <ProtectedRoute>
+                      <CampusRadarPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/connections"
+                  element={
+                    <ProtectedRoute>
+                      <ConnectionsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/chat/:userId"
+                  element={
+                    <ProtectedRoute>
+                      <ChatPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/profile"
+                  element={
+                    <ProtectedRoute>
+                      <ProfilePage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route path="/home" element={<Navigate to="/radar" replace />} />
+                <Route path="/discovery" element={<Navigate to="/radar" replace />} />
+              </Routes>
+            </Suspense>
+          </motion.div>
+        </AnimatePresence>
       </ErrorBoundary>
     </div>
   );

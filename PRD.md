@@ -168,7 +168,7 @@ The onboarding is a 4-step flow (3 steps for already-authenticated users) with a
 - **Animation:** Motion (Framer Motion)
 - **Icons:** Lucide React
 - **Analytics:** Vercel Analytics
-- **Design:** Copper/warm color palette (#B87333 primary), Playfair Display + Inter fonts
+- **Design:** Copper/warm color palette (#B87333 primary, #D4AF37 accent), Playfair Display + Inter fonts
 
 ---
 

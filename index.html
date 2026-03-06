@@ -2,23 +2,17 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>My Google AI Studio App</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#1A1A1A" />
+    <meta name="description" content="Gravity — Proximity-based professional networking at Gummifabriken" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <title>Gravity @ Gummifabriken</title>
   </head>
   <body>
     <div id="root"></div>
-    <div id="debug-marker" style="position:fixed; bottom:0; right:0; background:black; color:lime; font-size:10px; z-index:9999; padding:2px;">HTML_LOADED</div>
-    <script>
-      window.onerror = function(msg, url, line, col, error) {
-        var marker = document.getElementById('debug-marker');
-        if (marker) {
-          marker.innerHTML = 'ERROR: ' + msg;
-          marker.style.background = 'red';
-        }
-        console.error('GLOBAL ERROR:', msg, url, line, col, error);
-      };
-    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-

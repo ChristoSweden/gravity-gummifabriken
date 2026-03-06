@@ -1,63 +1,64 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { APP_CONFIG } from '../config/appConfig';
 
 export default function Navbar() {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
+  const { user } = useAuth();
+  const location = useLocation();
 
-  const handleLogout = async () => {
-    await logout();
-    navigate('/login');
-  };
+  const isActive = (path: string) => location.pathname === path;
+
+  const navLink = (to: string, label: string) => (
+    <Link
+      to={to}
+      className={`text-[11px] font-semibold uppercase tracking-widest transition-colors py-1 border-b-2 ${
+        isActive(to)
+          ? 'text-[--color-primary] border-[--color-primary]'
+          : 'text-[--color-steel-light] border-transparent hover:text-[--color-text-primary]'
+      }`}
+    >
+      {label}
+    </Link>
+  );
 
   return (
-    <nav className="bg-[--color-bg-warm] p-4 text-[--color-steel] shadow-sm border-b border-[--color-mist] sticky top-0 z-50">
-      <div className="container mx-auto flex justify-between items-center">
-        <Link to={user ? '/radar' : '/'} className="text-2xl font-brand text-[--color-primary] tracking-tight">
-          Gravity
+    <nav className="glass-effect px-6 py-4 border-b border-[--color-sand]/60 sticky top-0 z-50">
+      <div className="max-w-2xl mx-auto flex justify-between items-center">
+        <Link
+          to={user ? '/radar' : '/'}
+          className="font-serif text-xl text-[--color-text-header] hover:text-[--color-primary] transition-colors"
+        >
+          {APP_CONFIG.APP_NAME}.
         </Link>
-        <div className="flex items-center space-x-6">
+
+        <div className="flex items-center gap-6">
           {user ? (
             <>
-              <Link
-                to="/radar"
-                className="text-sm font-medium hover:text-[--color-primary] transition-colors duration-200"
-              >
-                Radar
-              </Link>
-              <Link
-                to="/connections"
-                className="text-sm font-medium hover:text-[--color-primary] transition-colors duration-200"
-              >
-                Connections
-              </Link>
+              {navLink('/radar', 'Radar')}
+              {navLink('/connections', 'Network')}
               <Link
                 to="/profile"
-                className="text-sm font-medium hover:text-[--color-primary] transition-colors duration-200"
+                className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${
+                  isActive('/profile')
+                    ? 'bg-[--color-primary] text-white'
+                    : 'border border-[--color-sand] text-[--color-steel-light] hover:border-[--color-primary] hover:text-[--color-primary]'
+                }`}
+                aria-label="Profile"
               >
-                Profile
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
               </Link>
-              <button
-                onClick={handleLogout}
-                className="text-sm font-medium text-red-600 hover:text-red-800 transition-colors duration-200"
-              >
-                Logout
-              </button>
             </>
           ) : (
             <>
-              <Link
-                to="/login"
-                className="text-sm font-medium hover:text-[--color-primary] transition-colors duration-200"
-              >
-                Login
+              <Link to="/login" className="text-[11px] font-semibold text-[--color-steel-light] uppercase tracking-widest hover:text-[--color-text-primary] transition-colors">
+                Log In
               </Link>
               <Link
-                to="/register"
-                className="bg-[--color-primary] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-opacity-90 transition-colors duration-200"
+                to="/onboarding"
+                className="btn-primary px-5 py-2.5 text-[10px]"
               >
-                Sign Up
+                Get Started
               </Link>
             </>
           )}

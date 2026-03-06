@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabaseService';
 import { MOCK_USERS, getDemoProfile, getDemoConnections, acceptDemoConnection, declineDemoConnection } from '../services/mockData';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface Connection {
   id: string;
@@ -16,6 +17,7 @@ interface Profile {
   id: string;
   full_name: string;
   interests: string[];
+  profession?: string;
 }
 
 export default function ConnectionsPage() {
@@ -25,8 +27,9 @@ export default function ConnectionsPage() {
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  const fetchConnections = async () => {
+  const fetchConnections = React.useCallback(async () => {
     if (!user) return;
+
     if (isDemo) {
       const connections = getDemoConnections();
       const profileMap: Record<string, Profile> = {};
@@ -40,12 +43,8 @@ export default function ConnectionsPage() {
         const otherId = c.requester_id === getDemoProfile().id ? c.recipient_id : c.requester_id;
         const profile = profileMap[otherId];
         if (!profile) return;
-
-        if (c.status === 'pending' && c.recipient_id === getDemoProfile().id) {
-          pending.push({ ...c, profile });
-        } else if (c.status === 'accepted') {
-          acc.push({ ...c, profile });
-        }
+        if (c.status === 'pending' && c.recipient_id === getDemoProfile().id) pending.push({ ...c, profile });
+        else if (c.status === 'accepted') acc.push({ ...c, profile });
       });
 
       setPendingRequests(pending);
@@ -54,35 +53,26 @@ export default function ConnectionsPage() {
       return;
     }
 
-    // Fetch all connections involving current user
     const { data: connections } = await supabase
       .from('connections')
       .select('*')
       .or(`requester_id.eq.${user.id},recipient_id.eq.${user.id}`)
       .order('created_at', { ascending: false });
 
-    if (!connections) {
-      setLoading(false);
-      return;
-    }
+    if (!connections) { setLoading(false); return; }
 
-    // Get all other user IDs
     const otherIds = connections.map((c) =>
       c.requester_id === user.id ? c.recipient_id : c.requester_id
     );
 
-    // Fetch profiles for those users
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('id, full_name, interests')
+      .select('id, full_name, interests, profession')
       .in('id', otherIds);
 
     const profileMap: Record<string, Profile> = {};
-    (profiles || []).forEach((p: Profile) => {
-      profileMap[p.id] = p;
-    });
+    (profiles || []).forEach((p: Profile) => { profileMap[p.id] = p; });
 
-    // Split into pending (where I'm recipient) and accepted
     const pending: (Connection & { profile: Profile })[] = [];
     const acc: (Connection & { profile: Profile })[] = [];
 
@@ -90,174 +80,143 @@ export default function ConnectionsPage() {
       const otherId = c.requester_id === user.id ? c.recipient_id : c.requester_id;
       const profile = profileMap[otherId];
       if (!profile) return;
-
-      if (c.status === 'pending' && c.recipient_id === user.id) {
-        pending.push({ ...c, profile });
-      } else if (c.status === 'accepted') {
-        acc.push({ ...c, profile });
-      }
+      if (c.status === 'pending' && c.recipient_id === user.id) pending.push({ ...c, profile });
+      else if (c.status === 'accepted') acc.push({ ...c, profile });
     });
 
     setPendingRequests(pending);
     setAccepted(acc);
     setLoading(false);
-  };
+  }, [user, isDemo]);
 
   useEffect(() => {
     fetchConnections();
-
     if (!user) return;
 
     const channel = supabase
       .channel('connections-page')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'connections' }, () => {
-        fetchConnections();
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'connections', filter: `recipient_id=eq.${user.id}` }, () => fetchConnections())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'connections', filter: `requester_id=eq.${user.id}` }, () => fetchConnections())
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user]);
+    return () => { supabase.removeChannel(channel); };
+  }, [user, fetchConnections]);
 
   const handleAccept = async (connectionId: string) => {
     setUpdatingId(connectionId);
-    if (isDemo) {
-      acceptDemoConnection(connectionId);
-      await fetchConnections();
-      setUpdatingId(null);
-      return;
-    }
-    await supabase
-      .from('connections')
-      .update({ status: 'accepted' })
-      .eq('id', connectionId);
+    if (isDemo) { acceptDemoConnection(connectionId); await fetchConnections(); setUpdatingId(null); return; }
+    await supabase.from('connections').update({ status: 'accepted' }).eq('id', connectionId);
     await fetchConnections();
     setUpdatingId(null);
   };
 
   const handleDecline = async (connectionId: string) => {
     setUpdatingId(connectionId);
-    if (isDemo) {
-      declineDemoConnection(connectionId);
-      await fetchConnections();
-      setUpdatingId(null);
-      return;
-    }
-    await supabase
-      .from('connections')
-      .delete()
-      .eq('id', connectionId);
+    if (isDemo) { declineDemoConnection(connectionId); await fetchConnections(); setUpdatingId(null); return; }
+    await supabase.from('connections').delete().eq('id', connectionId);
     await fetchConnections();
     setUpdatingId(null);
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[--color-bg-warm] p-8 flex items-center justify-center">
-        <div className="animate-pulse font-brand text-xl text-[--color-primary]">Loading connections...</div>
+      <div className="min-h-screen bg-[--color-bg-warm] flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 rounded-full border-2 border-[--color-primary] border-t-transparent animate-spin mx-auto mb-4" />
+          <p className="section-label">Loading connections...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[--color-bg-warm] p-4 md:p-8">
-      <div className="max-w-2xl mx-auto">
-        <header className="mb-8 text-center">
-          <h2 className="text-3xl font-brand font-bold text-[--color-primary] mb-2 uppercase tracking-tight">
-            Connections
-          </h2>
+    <div className="min-h-screen bg-[--color-bg-warm] pb-24">
+      <div className="max-w-lg mx-auto px-6 pt-8">
+        <header className="mb-8">
+          <h2 className="font-serif text-3xl text-[--color-text-header] mb-1">Connections</h2>
+          <p className="text-sm text-[--color-text-secondary]">Your professional network</p>
         </header>
 
-        {/* Pending Requests */}
-        {pendingRequests.length > 0 && (
-          <div className="mb-8">
-            <h3 className="text-sm font-bold uppercase tracking-widest text-[--color-steel] opacity-60 mb-4">
-              Pending Requests
-            </h3>
-            <div className="space-y-3">
-              {pendingRequests.map((req) => (
-                <div
-                  key={req.id}
-                  className="bg-white border border-[--color-mist] p-4 rounded-2xl shadow-sm animate-fade-in flex items-center space-x-4"
-                >
-                  <div className="w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center text-white font-brand text-lg bg-[--color-accent]">
-                    {req.profile.full_name?.charAt(0) || '?'}
-                  </div>
-                  <div className="flex-grow">
-                    <h4 className="font-brand font-bold">{req.profile.full_name}</h4>
-                    <p className="text-xs text-[--color-steel] opacity-60">
-                      {(req.profile.interests || []).slice(0, 3).join(', ')}
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleAccept(req.id)}
-                      disabled={updatingId === req.id}
-                      className="bg-green-600 text-white px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest hover:bg-green-700 transition-all disabled:opacity-50"
-                    >
-                      Accept
-                    </button>
-                    <button
-                      onClick={() => handleDecline(req.id)}
-                      disabled={updatingId === req.id}
-                      className="bg-white text-[--color-steel] border border-[--color-mist] px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all disabled:opacity-50"
-                    >
-                      Decline
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Accepted Connections */}
-        <div>
-          <h3 className="text-sm font-bold uppercase tracking-widest text-[--color-steel] opacity-60 mb-4">
-            {accepted.length > 0 ? 'Your Connections' : ''}
-          </h3>
-
-          {accepted.length === 0 && pendingRequests.length === 0 ? (
-            <div className="bg-white p-8 rounded-2xl shadow-sm border border-[--color-mist] text-center">
-              <p className="text-[--color-steel] text-lg">No connections yet.</p>
-              <p className="text-[--color-steel] opacity-60 text-sm mt-2">
-                Head to the Radar to find people with shared interests.
-              </p>
-              <Link
-                to="/radar"
-                className="inline-block mt-4 bg-[--color-primary] text-white px-6 py-3 rounded-xl font-bold hover:bg-opacity-90 transition-all"
-              >
-                Open Radar
-              </Link>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {accepted.map((conn) => (
-                <div
-                  key={conn.id}
-                  className="bg-white border border-[--color-mist] p-4 rounded-2xl shadow-sm hover-lift animate-fade-in flex items-center space-x-4"
-                >
-                  <div className="w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center text-white font-brand text-lg bg-[--color-primary]">
-                    {conn.profile.full_name?.charAt(0) || '?'}
-                  </div>
-                  <div className="flex-grow">
-                    <h4 className="font-brand font-bold">{conn.profile.full_name}</h4>
-                    <p className="text-xs text-[--color-steel] opacity-60">
-                      {(conn.profile.interests || []).slice(0, 3).join(', ')}
-                    </p>
-                  </div>
-                  <Link
-                    to={`/chat/${conn.profile.id}`}
-                    className="bg-[--color-primary] text-white px-5 py-2 rounded-full text-xs font-bold uppercase tracking-widest hover:bg-opacity-90 transition-all"
-                  >
-                    Message
-                  </Link>
-                </div>
-              ))}
-            </div>
+        <AnimatePresence>
+          {/* Pending */}
+          {pendingRequests.length > 0 && (
+            <motion.section
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-10"
+            >
+              <div className="flex items-center gap-2 mb-4">
+                <span className="w-2 h-2 bg-[--color-accent] rounded-full animate-gentle-pulse" />
+                <h3 className="section-label">Pending Requests ({pendingRequests.length})</h3>
+              </div>
+              <div className="space-y-3">
+                {pendingRequests.map((req) => (
+                  <motion.div layout key={req.id} className="card p-4">
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="w-11 h-11 rounded-xl bg-[--color-accent] flex items-center justify-center text-white font-serif text-lg flex-shrink-0">
+                        {req.profile.full_name?.charAt(0) || '?'}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-serif text-[--color-text-header] truncate">{req.profile.full_name}</h4>
+                        <p className="text-[13px] text-[--color-text-secondary]">{req.profile.profession || 'Professional'}</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => handleAccept(req.id)} disabled={updatingId === req.id} className="btn-primary flex-1 py-2.5 text-xs disabled:opacity-50">
+                        Accept
+                      </button>
+                      <button onClick={() => handleDecline(req.id)} disabled={updatingId === req.id} className="btn-secondary flex-1 py-2.5 text-xs disabled:opacity-50">
+                        Decline
+                      </button>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.section>
           )}
-        </div>
+
+          {/* Accepted */}
+          <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }}>
+            {accepted.length > 0 && (
+              <>
+                <h3 className="section-label mb-4">Your Network ({accepted.length})</h3>
+                <div className="space-y-2">
+                  {accepted.map((conn) => (
+                    <motion.div layout key={conn.id}>
+                      <Link to={`/chat/${conn.profile.id}`} className="card card-interactive p-4 flex items-center gap-4 block">
+                        <div className="w-11 h-11 rounded-xl bg-[--color-primary] flex items-center justify-center text-white font-serif text-lg flex-shrink-0">
+                          {conn.profile.full_name?.charAt(0) || '?'}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-serif text-[--color-text-header] truncate">{conn.profile.full_name}</h4>
+                          <p className="text-[13px] text-[--color-text-secondary] truncate">
+                            {(conn.profile.interests || []).slice(0, 2).join(' · ') || conn.profile.profession || 'Connected'}
+                          </p>
+                        </div>
+                        <div className="w-9 h-9 rounded-full border border-[--color-sand] flex items-center justify-center text-[--color-steel-light] flex-shrink-0">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
+                        </div>
+                      </Link>
+                    </motion.div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {accepted.length === 0 && pendingRequests.length === 0 && (
+              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="card p-12 text-center">
+                <div className="w-16 h-16 bg-[--color-sand-light] rounded-full flex items-center justify-center mx-auto mb-5">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--color-steel-light)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
+                </div>
+                <h3 className="font-serif text-lg text-[--color-text-header] mb-2">No connections yet</h3>
+                <p className="text-sm text-[--color-text-secondary] mb-6 max-w-[240px] mx-auto">
+                  Head to the radar to find professionals with shared interests.
+                </p>
+                <Link to="/radar" className="btn-primary inline-block px-8 py-3 text-xs">Open Radar</Link>
+              </motion.div>
+            )}
+          </motion.section>
+        </AnimatePresence>
       </div>
     </div>
   );

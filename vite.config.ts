@@ -15,6 +15,17 @@ export default defineConfig(({ mode }) => {
       environment: 'happy-dom',
       setupFiles: ['./src/test/setup.ts'],
     },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            vendor: ['react', 'react-dom', 'react-router-dom'],
+            supabase: ['@supabase/supabase-js'],
+            motion: ['motion'],
+          },
+        },
+      },
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
