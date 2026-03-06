@@ -185,17 +185,17 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[--color-bg-warm] flex flex-col">
+    <div className="min-h-screen bg-[var(--color-bg-warm)] flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-5 max-w-lg mx-auto w-full">
         <button
           onClick={handleBack}
-          className="w-10 h-10 flex items-center justify-center text-[--color-steel-light] hover:text-[--color-text-primary] transition-colors rounded-lg"
+          className="w-10 h-10 flex items-center justify-center text-[var(--color-steel-light)] hover:text-[var(--color-text-primary)] transition-colors rounded-lg"
           aria-label="Go back"
         >
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
         </button>
-        <span className="font-serif text-2xl text-[--color-text-header]">{APP_CONFIG.APP_NAME}.</span>
+        <span className="font-serif text-2xl text-[var(--color-text-header)]">{APP_CONFIG.APP_NAME}.</span>
         <div className="w-10" />
       </div>
 
@@ -207,7 +207,7 @@ export default function OnboardingPage() {
             <div
               key={i}
               className={`flex-1 h-1 rounded-full transition-all duration-500 ${
-                i < step ? 'bg-[--color-primary]' : 'bg-[--color-sand]'
+                i < step ? 'bg-[var(--color-primary)]' : 'bg-[var(--color-sand)]'
               }`}
             />
           ))}
@@ -232,17 +232,17 @@ export default function OnboardingPage() {
               <motion.div
                 initial={{ opacity: 0, y: -4 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-[--color-error]/5 border border-[--color-error]/15 px-4 py-3 rounded-[--radius-md] mb-6"
+                className="bg-[var(--color-error)]/5 border border-[var(--color-error)]/15 px-4 py-3 rounded-[var(--radius-md)] mb-6"
               >
-                <p className="text-[--color-error] text-sm">{error}</p>
+                <p className="text-[var(--color-error)] text-sm">{error}</p>
               </motion.div>
             )}
 
             {/* Step 1: Proximity */}
             {step === 1 && (
               <div>
-                <h1 className="font-serif text-3xl text-[--color-text-header] mb-2">Proximity</h1>
-                <p className="text-sm text-[--color-text-secondary] mb-8">
+                <h1 className="font-serif text-3xl text-[var(--color-text-header)] mb-2">Proximity</h1>
+                <p className="text-sm text-[var(--color-text-secondary)] mb-8">
                   Enable location detection for {APP_CONFIG.LOCATION_NAME}
                 </p>
 
@@ -257,12 +257,12 @@ export default function OnboardingPage() {
                       style={{ animationDelay: `${i * 0.1}s` }}
                     >
                       <div>
-                        <p className="font-semibold text-[--color-text-primary] text-[15px]">{item.label}</p>
-                        <p className="text-[13px] text-[--color-text-secondary] mt-0.5">{item.desc}</p>
+                        <p className="font-semibold text-[var(--color-text-primary)] text-[15px]">{item.label}</p>
+                        <p className="text-[13px] text-[var(--color-text-secondary)] mt-0.5">{item.desc}</p>
                       </div>
                       <button
                         onClick={item.toggle}
-                        className={`relative w-12 h-7 rounded-full transition-colors duration-200 flex-shrink-0 ml-4 ${item.value ? 'bg-[--color-primary]' : 'bg-[--color-sand]'}`}
+                        className={`relative w-12 h-7 rounded-full transition-colors duration-200 flex-shrink-0 ml-4 ${item.value ? 'bg-[var(--color-primary)]' : 'bg-[var(--color-sand)]'}`}
                         aria-label={`Toggle ${item.label}`}
                       >
                         <div className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-sm transition-transform duration-200 ${item.value ? 'translate-x-5' : 'translate-x-0'}`} />
@@ -271,7 +271,7 @@ export default function OnboardingPage() {
                   ))}
                 </div>
 
-                <p className="text-[13px] text-[--color-text-secondary] mt-6 text-center italic">
+                <p className="text-[13px] text-[var(--color-text-secondary)] mt-6 text-center italic">
                   Your exact location is never shared — only proximity.
                 </p>
               </div>
@@ -280,8 +280,8 @@ export default function OnboardingPage() {
             {/* Step 2: Interests */}
             {step === 2 && (
               <div>
-                <h1 className="font-serif text-3xl text-[--color-text-header] mb-2">Interests</h1>
-                <p className="text-sm text-[--color-text-secondary] mb-8">
+                <h1 className="font-serif text-3xl text-[var(--color-text-header)] mb-2">Interests</h1>
+                <p className="text-sm text-[var(--color-text-secondary)] mb-8">
                   Select 3–10 topics that define your work
                 </p>
 
@@ -297,7 +297,7 @@ export default function OnboardingPage() {
                   />
                   <button
                     onClick={addCustomInterest}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-[--color-primary] text-white rounded-lg flex items-center justify-center hover:bg-[--color-primary-dark] transition-colors"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-[var(--color-primary)] text-white rounded-lg flex items-center justify-center hover:bg-[var(--color-primary-dark)] transition-colors"
                     aria-label="Add custom interest"
                     type="button"
                   >
@@ -317,8 +317,8 @@ export default function OnboardingPage() {
                         disabled={!sel && selectedInterests.length >= MAX_INTERESTS}
                         className={`px-4 py-2.5 rounded-full text-[13px] font-medium border transition-all animate-fade-in ${
                           sel
-                            ? 'bg-[--color-primary] border-[--color-primary] text-white'
-                            : 'bg-white border-[--color-sand] text-[--color-text-primary] hover:border-[--color-primary-light] disabled:opacity-40'
+                            ? 'bg-[var(--color-primary)] border-[var(--color-primary)] text-white'
+                            : 'bg-white border-[var(--color-sand)] text-[var(--color-text-primary)] hover:border-[var(--color-primary-light)] disabled:opacity-40'
                         }`}
                         style={{ animationDelay: `${i * 0.02}s` }}
                       >
@@ -335,12 +335,12 @@ export default function OnboardingPage() {
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, height: 0 }}
-                      className="border-t border-[--color-sand] pt-5"
+                      className="border-t border-[var(--color-sand)] pt-5"
                     >
                       <p className="section-label mb-3">
                         Selected ({selectedInterests.length}/{MAX_INTERESTS})
                         {selectedInterests.length < 3 && (
-                          <span className="text-[--color-primary] ml-2">
+                          <span className="text-[var(--color-primary)] ml-2">
                             {3 - selectedInterests.length} more needed
                           </span>
                         )}
@@ -353,13 +353,13 @@ export default function OnboardingPage() {
                             animate={{ scale: 1, opacity: 1 }}
                             exit={{ scale: 0.8, opacity: 0 }}
                             key={interest}
-                            className="inline-flex items-center gap-1.5 bg-[--color-primary]/10 text-[--color-primary-dark] px-3 py-1.5 rounded-full text-[13px] font-medium border border-[--color-primary]/15"
+                            className="inline-flex items-center gap-1.5 bg-[var(--color-primary)]/10 text-[var(--color-primary-dark)] px-3 py-1.5 rounded-full text-[13px] font-medium border border-[var(--color-primary)]/15"
                           >
                             {interest}
                             <button
                               type="button"
                               onClick={() => removeInterest(interest)}
-                              className="hover:text-[--color-error] transition-colors"
+                              className="hover:text-[var(--color-error)] transition-colors"
                               aria-label={`Remove ${interest}`}
                             >
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
@@ -376,8 +376,8 @@ export default function OnboardingPage() {
             {/* Step 3: Profile */}
             {step === 3 && (
               <div>
-                <h1 className="font-serif text-3xl text-[--color-text-header] mb-2">Profile</h1>
-                <p className="text-sm text-[--color-text-secondary] mb-8">
+                <h1 className="font-serif text-3xl text-[var(--color-text-header)] mb-2">Profile</h1>
+                <p className="text-sm text-[var(--color-text-secondary)] mb-8">
                   How you appear on the radar
                 </p>
 
@@ -410,8 +410,8 @@ export default function OnboardingPage() {
             {/* Step 4: Signup */}
             {step === 4 && (
               <div>
-                <h1 className="font-serif text-3xl text-[--color-text-header] mb-2">Create your account</h1>
-                <p className="text-sm text-[--color-text-secondary] mb-8">
+                <h1 className="font-serif text-3xl text-[var(--color-text-header)] mb-2">Create your account</h1>
+                <p className="text-sm text-[var(--color-text-secondary)] mb-8">
                   We'll send a verification link to your email.
                 </p>
 
@@ -421,11 +421,11 @@ export default function OnboardingPage() {
                     animate={{ opacity: 1, scale: 1 }}
                     className="card p-8 text-center"
                   >
-                    <div className="w-14 h-14 bg-[--color-success]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <div className="w-14 h-14 bg-[var(--color-success)]/10 rounded-full flex items-center justify-center mx-auto mb-4">
                       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" /></svg>
                     </div>
-                    <h3 className="font-serif text-xl text-[--color-text-header] mb-2">Check your inbox</h3>
-                    <p className="text-sm text-[--color-text-secondary]">{signupMessage}</p>
+                    <h3 className="font-serif text-xl text-[var(--color-text-header)] mb-2">Check your inbox</h3>
+                    <p className="text-sm text-[var(--color-text-secondary)]">{signupMessage}</p>
                   </motion.div>
                 ) : (
                   <div className="space-y-5">
@@ -456,7 +456,7 @@ export default function OnboardingPage() {
                       <button
                         type="button"
                         onClick={handleSkipToDemo}
-                        className="text-[13px] text-[--color-text-secondary] hover:text-[--color-primary] transition-colors"
+                        className="text-[13px] text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] transition-colors"
                       >
                         Skip — try Demo Mode instead
                       </button>
@@ -471,7 +471,7 @@ export default function OnboardingPage() {
 
       {/* Sticky Bottom Button */}
       {!signupMessage && (
-        <div className="fixed bottom-0 left-0 right-0 glass-effect border-t border-[--color-sand]/60 px-6 py-5 safe-bottom z-50">
+        <div className="fixed bottom-0 left-0 right-0 glass-effect border-t border-[var(--color-sand)]/60 px-6 py-5 safe-bottom z-50">
           <div className="max-w-lg mx-auto">
             <button
               type="button"

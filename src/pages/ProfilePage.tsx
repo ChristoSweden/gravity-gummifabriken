@@ -140,9 +140,9 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[--color-bg-warm] flex items-center justify-center">
+      <div className="min-h-screen bg-[var(--color-bg-warm)] flex items-center justify-center">
         <div className="text-center">
-          <div className="w-12 h-12 rounded-full border-2 border-[--color-primary] border-t-transparent animate-spin mx-auto mb-4" />
+          <div className="w-12 h-12 rounded-full border-2 border-[var(--color-primary)] border-t-transparent animate-spin mx-auto mb-4" />
           <p className="section-label">Loading profile...</p>
         </div>
       </div>
@@ -151,9 +151,9 @@ export default function ProfilePage() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-[--color-bg-warm] flex items-center justify-center px-6">
+      <div className="min-h-screen bg-[var(--color-bg-warm)] flex items-center justify-center px-6">
         <div className="card p-10 text-center max-w-sm">
-          <p className="text-sm text-[--color-text-secondary] mb-4">Please log in to view your profile.</p>
+          <p className="text-sm text-[var(--color-text-secondary)] mb-4">Please log in to view your profile.</p>
           <button onClick={() => navigate('/login')} className="btn-primary px-8 py-3 text-xs">Log In</button>
         </div>
       </div>
@@ -163,13 +163,13 @@ export default function ProfilePage() {
   const Toggle = ({ value, onToggle, label, desc }: { value: boolean; onToggle: () => void; label: string; desc: string }) => (
     <div className="flex items-center justify-between py-3">
       <div>
-        <p className="text-[15px] font-medium text-[--color-text-primary]">{label}</p>
-        <p className="text-[13px] text-[--color-text-secondary] mt-0.5">{desc}</p>
+        <p className="text-[15px] font-medium text-[var(--color-text-primary)]">{label}</p>
+        <p className="text-[13px] text-[var(--color-text-secondary)] mt-0.5">{desc}</p>
       </div>
       <button
         type="button"
         onClick={onToggle}
-        className={`relative w-12 h-7 rounded-full transition-colors duration-200 flex-shrink-0 ml-4 ${value ? 'bg-[--color-primary]' : 'bg-[--color-sand]'}`}
+        className={`relative w-12 h-7 rounded-full transition-colors duration-200 flex-shrink-0 ml-4 ${value ? 'bg-[var(--color-primary)]' : 'bg-[var(--color-sand)]'}`}
         aria-label={`Toggle ${label}`}
       >
         <div className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-sm transition-transform duration-200 ${value ? 'translate-x-5' : 'translate-x-0'}`} />
@@ -178,18 +178,18 @@ export default function ProfilePage() {
   );
 
   return (
-    <div className="min-h-screen bg-[--color-bg-warm] pb-24">
+    <div className="min-h-screen bg-[var(--color-bg-warm)] pb-24">
       <div className="max-w-lg mx-auto px-6 pt-8">
         {/* Header */}
         <header className="mb-8">
-          <h2 className="font-serif text-3xl text-[--color-text-header] mb-1">Profile</h2>
-          <p className="text-sm text-[--color-text-secondary]">Identity, privacy & settings</p>
+          <h2 className="font-serif text-3xl text-[var(--color-text-header)] mb-1">Profile</h2>
+          <p className="text-sm text-[var(--color-text-secondary)]">Identity, privacy & settings</p>
         </header>
 
         {/* Toast */}
         {(message || error) && (
-          <div className={`mb-6 px-4 py-3 rounded-[--radius-md] text-sm font-medium ${
-            message ? 'bg-[--color-success]/8 text-[--color-success] border border-[--color-success]/15' : 'bg-[--color-error]/5 text-[--color-error] border border-[--color-error]/15'
+          <div className={`mb-6 px-4 py-3 rounded-[var(--radius-md)] text-sm font-medium ${
+            message ? 'bg-[var(--color-success)]/8 text-[var(--color-success)] border border-[var(--color-success)]/15' : 'bg-[var(--color-error)]/5 text-[var(--color-error)] border border-[var(--color-error)]/15'
           }`}>
             {message || error}
           </div>
@@ -250,7 +250,7 @@ export default function ProfilePage() {
         </form>
 
         {/* Data & Privacy */}
-        <section className="mt-12 pt-8 border-t border-[--color-sand]">
+        <section className="mt-12 pt-8 border-t border-[var(--color-sand)]">
           <h3 className="section-label mb-4">Data & Privacy</h3>
           <div className="grid grid-cols-2 gap-3">
             <button onClick={handleExportData} className="btn-secondary py-3 text-xs">
@@ -258,7 +258,7 @@ export default function ProfilePage() {
             </button>
             <button
               onClick={handleDeleteAccount}
-              className="py-3 text-xs font-semibold uppercase tracking-widest text-[--color-error] border-1.5 border-[--color-error]/15 rounded-full hover:bg-[--color-error]/5 transition-colors"
+              className="py-3 text-xs font-semibold uppercase tracking-widest text-[var(--color-error)] border-1.5 border-[var(--color-error)]/15 rounded-full hover:bg-[var(--color-error)]/5 transition-colors"
             >
               Delete Account
             </button>
@@ -268,7 +268,7 @@ export default function ProfilePage() {
         {/* Sign out */}
         <button
           onClick={handleLogout}
-          className="w-full mt-6 mb-4 py-3 text-sm text-[--color-text-secondary] hover:text-[--color-text-primary] transition-colors"
+          className="w-full mt-6 mb-4 py-3 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors"
         >
           Sign Out
         </button>

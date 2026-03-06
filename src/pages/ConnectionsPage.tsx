@@ -120,9 +120,9 @@ export default function ConnectionsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[--color-bg-warm] flex items-center justify-center">
+      <div className="min-h-screen bg-[var(--color-bg-warm)] flex items-center justify-center">
         <div className="text-center">
-          <div className="w-12 h-12 rounded-full border-2 border-[--color-primary] border-t-transparent animate-spin mx-auto mb-4" />
+          <div className="w-12 h-12 rounded-full border-2 border-[var(--color-primary)] border-t-transparent animate-spin mx-auto mb-4" />
           <p className="section-label">Loading connections...</p>
         </div>
       </div>
@@ -130,11 +130,11 @@ export default function ConnectionsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[--color-bg-warm] pb-24">
+    <div className="min-h-screen bg-[var(--color-bg-warm)] pb-24">
       <div className="max-w-lg mx-auto px-6 pt-8">
         <header className="mb-8">
-          <h2 className="font-serif text-3xl text-[--color-text-header] mb-1">Connections</h2>
-          <p className="text-sm text-[--color-text-secondary]">Your professional network</p>
+          <h2 className="font-serif text-3xl text-[var(--color-text-header)] mb-1">Connections</h2>
+          <p className="text-sm text-[var(--color-text-secondary)]">Your professional network</p>
         </header>
 
         <AnimatePresence>
@@ -146,19 +146,19 @@ export default function ConnectionsPage() {
               className="mb-10"
             >
               <div className="flex items-center gap-2 mb-4">
-                <span className="w-2 h-2 bg-[--color-accent] rounded-full animate-gentle-pulse" />
+                <span className="w-2 h-2 bg-[var(--color-accent)] rounded-full animate-gentle-pulse" />
                 <h3 className="section-label">Pending Requests ({pendingRequests.length})</h3>
               </div>
               <div className="space-y-3">
                 {pendingRequests.map((req) => (
                   <motion.div layout key={req.id} className="card p-4">
                     <div className="flex items-center gap-4 mb-4">
-                      <div className="w-11 h-11 rounded-xl bg-[--color-accent] flex items-center justify-center text-white font-serif text-lg flex-shrink-0">
+                      <div className="w-11 h-11 rounded-xl bg-[var(--color-accent)] flex items-center justify-center text-white font-serif text-lg flex-shrink-0">
                         {req.profile.full_name?.charAt(0) || '?'}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-serif text-[--color-text-header] truncate">{req.profile.full_name}</h4>
-                        <p className="text-[13px] text-[--color-text-secondary]">{req.profile.profession || 'Professional'}</p>
+                        <h4 className="font-serif text-[var(--color-text-header)] truncate">{req.profile.full_name}</h4>
+                        <p className="text-[13px] text-[var(--color-text-secondary)]">{req.profile.profession || 'Professional'}</p>
                       </div>
                     </div>
                     <div className="flex gap-2">
@@ -184,16 +184,16 @@ export default function ConnectionsPage() {
                   {accepted.map((conn) => (
                     <motion.div layout key={conn.id}>
                       <Link to={`/chat/${conn.profile.id}`} className="card card-interactive p-4 flex items-center gap-4 block">
-                        <div className="w-11 h-11 rounded-xl bg-[--color-primary] flex items-center justify-center text-white font-serif text-lg flex-shrink-0">
+                        <div className="w-11 h-11 rounded-xl bg-[var(--color-primary)] flex items-center justify-center text-white font-serif text-lg flex-shrink-0">
                           {conn.profile.full_name?.charAt(0) || '?'}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-serif text-[--color-text-header] truncate">{conn.profile.full_name}</h4>
-                          <p className="text-[13px] text-[--color-text-secondary] truncate">
+                          <h4 className="font-serif text-[var(--color-text-header)] truncate">{conn.profile.full_name}</h4>
+                          <p className="text-[13px] text-[var(--color-text-secondary)] truncate">
                             {(conn.profile.interests || []).slice(0, 2).join(' · ') || conn.profile.profession || 'Connected'}
                           </p>
                         </div>
-                        <div className="w-9 h-9 rounded-full border border-[--color-sand] flex items-center justify-center text-[--color-steel-light] flex-shrink-0">
+                        <div className="w-9 h-9 rounded-full border border-[var(--color-sand)] flex items-center justify-center text-[var(--color-steel-light)] flex-shrink-0">
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
                         </div>
                       </Link>
@@ -205,11 +205,11 @@ export default function ConnectionsPage() {
 
             {accepted.length === 0 && pendingRequests.length === 0 && (
               <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="card p-12 text-center">
-                <div className="w-16 h-16 bg-[--color-sand-light] rounded-full flex items-center justify-center mx-auto mb-5">
+                <div className="w-16 h-16 bg-[var(--color-sand-light)] rounded-full flex items-center justify-center mx-auto mb-5">
                   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--color-steel-light)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
                 </div>
-                <h3 className="font-serif text-lg text-[--color-text-header] mb-2">No connections yet</h3>
-                <p className="text-sm text-[--color-text-secondary] mb-6 max-w-[240px] mx-auto">
+                <h3 className="font-serif text-lg text-[var(--color-text-header)] mb-2">No connections yet</h3>
+                <p className="text-sm text-[var(--color-text-secondary)] mb-6 max-w-[240px] mx-auto">
                   Head to the radar to find professionals with shared interests.
                 </p>
                 <Link to="/radar" className="btn-primary inline-block px-8 py-3 text-xs">Open Radar</Link>

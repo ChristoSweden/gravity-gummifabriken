@@ -14,8 +14,8 @@ export default function Navbar() {
       to={to}
       className={`text-[11px] font-semibold uppercase tracking-widest transition-colors py-1 border-b-2 ${
         isActive(to)
-          ? 'text-[--color-primary] border-[--color-primary]'
-          : 'text-[--color-steel-light] border-transparent hover:text-[--color-text-primary]'
+          ? 'text-[var(--color-primary)] border-[var(--color-primary)]'
+          : 'text-[var(--color-steel-light)] border-transparent hover:text-[var(--color-text-primary)]'
       }`}
     >
       {label}
@@ -23,11 +23,11 @@ export default function Navbar() {
   );
 
   return (
-    <nav className="glass-effect px-6 py-4 border-b border-[--color-sand]/60 sticky top-0 z-50">
+    <nav className="glass-effect px-6 py-4 border-b border-[var(--color-sand)]/60 sticky top-0 z-50">
       <div className="max-w-2xl mx-auto flex justify-between items-center">
         <Link
           to={user ? '/radar' : '/'}
-          className="font-serif text-xl text-[--color-text-header] hover:text-[--color-primary] transition-colors"
+          className="font-serif text-xl text-[var(--color-text-header)] hover:text-[var(--color-primary)] transition-colors"
         >
           {APP_CONFIG.APP_NAME}.
         </Link>
@@ -41,8 +41,8 @@ export default function Navbar() {
                 to="/profile"
                 className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${
                   isActive('/profile')
-                    ? 'bg-[--color-primary] text-white'
-                    : 'border border-[--color-sand] text-[--color-steel-light] hover:border-[--color-primary] hover:text-[--color-primary]'
+                    ? 'bg-[var(--color-primary)] text-white'
+                    : 'border border-[var(--color-sand)] text-[var(--color-steel-light)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]'
                 }`}
                 aria-label="Profile"
               >
@@ -51,7 +51,7 @@ export default function Navbar() {
             </>
           ) : (
             <>
-              <Link to="/login" className="text-[11px] font-semibold text-[--color-steel-light] uppercase tracking-widest hover:text-[--color-text-primary] transition-colors">
+              <Link to="/login" className="text-[11px] font-semibold text-[var(--color-steel-light)] uppercase tracking-widest hover:text-[var(--color-text-primary)] transition-colors">
                 Log In
               </Link>
               <Link

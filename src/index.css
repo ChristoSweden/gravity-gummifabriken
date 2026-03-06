@@ -58,13 +58,13 @@
 /* ─── Base ─── */
 @layer base {
   body {
-    @apply bg-[--color-bg-warm] text-[--color-text-primary] font-sans antialiased;
+    @apply bg-[var(--color-bg-warm)] text-[var(--color-text-primary)] font-sans antialiased;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
   h1, h2, h3, .font-brand {
-    @apply font-serif font-bold text-[--color-text-header];
+    @apply font-serif font-bold text-[var(--color-text-header)];
   }
 
   /* Better default focus */

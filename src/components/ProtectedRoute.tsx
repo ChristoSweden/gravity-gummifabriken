@@ -43,8 +43,8 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   if (authLoading || checking) {
     return (
-      <div className="min-h-screen bg-[--color-bg-warm] flex items-center justify-center">
-        <div className="animate-pulse font-brand text-xl text-[--color-primary]">Loading...</div>
+      <div className="min-h-screen bg-[var(--color-bg-warm)] flex items-center justify-center">
+        <div className="animate-pulse font-brand text-xl text-[var(--color-primary)]">Loading...</div>
       </div>
     );
   }

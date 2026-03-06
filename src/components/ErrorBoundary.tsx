@@ -26,12 +26,12 @@ class ErrorBoundary extends Component<Props, State> {
     public render() {
         if (this.state.hasError) {
             return this.props.fallback || (
-                <div className="min-h-screen flex items-center justify-center p-4 bg-[--color-bg-warm]">
-                    <div className="bg-white p-8 rounded-2xl shadow-sm border border-[--color-mist] text-center max-w-md">
-                        <h2 className="text-2xl font-brand font-bold text-[--color-primary] mb-4 uppercase">Something went wrong</h2>
-                        <p className="text-[--color-steel] mb-6">The page couldn't load correctly.</p>
+                <div className="min-h-screen flex items-center justify-center p-4 bg-[var(--color-bg-warm)]">
+                    <div className="bg-white p-8 rounded-2xl shadow-sm border border-[var(--color-mist)] text-center max-w-md">
+                        <h2 className="text-2xl font-brand font-bold text-[var(--color-primary)] mb-4 uppercase">Something went wrong</h2>
+                        <p className="text-[var(--color-steel)] mb-6">The page couldn't load correctly.</p>
                         <button
-                            className="bg-[--color-primary] text-white px-8 py-3 rounded-full font-bold uppercase tracking-widest hover:opacity-90 transition-all"
+                            className="bg-[var(--color-primary)] text-white px-8 py-3 rounded-full font-bold uppercase tracking-widest hover:opacity-90 transition-all"
                             onClick={() => window.location.reload()}
                         >
                             Reload Page

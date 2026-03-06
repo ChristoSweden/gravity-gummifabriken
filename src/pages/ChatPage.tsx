@@ -123,9 +123,9 @@ export default function ChatPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[--color-bg-warm] flex items-center justify-center">
+      <div className="min-h-screen bg-[var(--color-bg-warm)] flex items-center justify-center">
         <div className="text-center">
-          <div className="w-12 h-12 rounded-full border-2 border-[--color-primary] border-t-transparent animate-spin mx-auto mb-4" />
+          <div className="w-12 h-12 rounded-full border-2 border-[var(--color-primary)] border-t-transparent animate-spin mx-auto mb-4" />
           <p className="section-label">Loading chat...</p>
         </div>
       </div>
@@ -134,13 +134,13 @@ export default function ChatPage() {
 
   if (!authorized) {
     return (
-      <div className="min-h-screen bg-[--color-bg-warm] flex items-center justify-center px-6">
+      <div className="min-h-screen bg-[var(--color-bg-warm)] flex items-center justify-center px-6">
         <div className="card p-10 text-center max-w-sm w-full">
-          <div className="w-14 h-14 bg-[--color-primary]/10 rounded-full flex items-center justify-center mx-auto mb-5">
+          <div className="w-14 h-14 bg-[var(--color-primary)]/10 rounded-full flex items-center justify-center mx-auto mb-5">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
           </div>
-          <h3 className="font-serif text-xl text-[--color-text-header] mb-2">Not Connected</h3>
-          <p className="text-sm text-[--color-text-secondary] mb-6">Connect with this person on the radar first.</p>
+          <h3 className="font-serif text-xl text-[var(--color-text-header)] mb-2">Not Connected</h3>
+          <p className="text-sm text-[var(--color-text-secondary)] mb-6">Connect with this person on the radar first.</p>
           <button onClick={() => navigate('/radar')} className="btn-primary w-full py-3.5 text-xs">
             Back to Radar
           </button>
@@ -150,23 +150,23 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-[--color-bg-warm]">
+    <div className="flex flex-col h-screen bg-[var(--color-bg-warm)]">
       {/* Header */}
-      <header className="flex-shrink-0 glass-effect border-b border-[--color-sand]/60 px-4 py-3 z-10">
+      <header className="flex-shrink-0 glass-effect border-b border-[var(--color-sand)]/60 px-4 py-3 z-10">
         <div className="max-w-lg mx-auto flex items-center gap-3">
           <button
             onClick={() => navigate('/connections')}
-            className="w-9 h-9 flex items-center justify-center text-[--color-steel-light] hover:text-[--color-text-primary] transition-colors rounded-lg"
+            className="w-9 h-9 flex items-center justify-center text-[var(--color-steel-light)] hover:text-[var(--color-text-primary)] transition-colors rounded-lg"
             aria-label="Back"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
           </button>
-          <div className="w-10 h-10 rounded-xl bg-[--color-primary] flex items-center justify-center text-white font-serif text-lg flex-shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-[var(--color-primary)] flex items-center justify-center text-white font-serif text-lg flex-shrink-0">
             {recipientName.charAt(0)}
           </div>
           <div className="min-w-0">
-            <h3 className="font-serif text-[--color-text-header] text-base truncate">{recipientName}</h3>
-            <p className="text-[12px] text-[--color-text-secondary] truncate">{recipientProfession || 'Connected'}</p>
+            <h3 className="font-serif text-[var(--color-text-header)] text-base truncate">{recipientName}</h3>
+            <p className="text-[12px] text-[var(--color-text-secondary)] truncate">{recipientProfession || 'Connected'}</p>
           </div>
         </div>
       </header>
@@ -177,10 +177,10 @@ export default function ChatPage() {
           <AnimatePresence initial={false}>
             {messages.length === 0 && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-20">
-                <div className="w-14 h-14 bg-[--color-sand-light] rounded-full flex items-center justify-center mx-auto mb-4">
+                <div className="w-14 h-14 bg-[var(--color-sand-light)] rounded-full flex items-center justify-center mx-auto mb-4">
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--color-steel-light)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
                 </div>
-                <p className="text-sm text-[--color-text-secondary]">Start the conversation</p>
+                <p className="text-sm text-[var(--color-text-secondary)]">Start the conversation</p>
               </motion.div>
             )}
             {messages.map((msg) => {
@@ -195,8 +195,8 @@ export default function ChatPage() {
                 >
                   <div className={`max-w-[80%] px-4 py-3 text-[15px] leading-relaxed ${
                     isMine
-                      ? 'bg-[--color-primary] text-white rounded-2xl rounded-br-md'
-                      : 'bg-white text-[--color-text-primary] border border-[--color-sand] rounded-2xl rounded-bl-md'
+                      ? 'bg-[var(--color-primary)] text-white rounded-2xl rounded-br-md'
+                      : 'bg-white text-[var(--color-text-primary)] border border-[var(--color-sand)] rounded-2xl rounded-bl-md'
                   }`}>
                     {msg.content}
                     <p className={`text-[10px] mt-1.5 opacity-50 ${isMine ? 'text-right' : 'text-left'}`}>
@@ -212,7 +212,7 @@ export default function ChatPage() {
       </div>
 
       {/* Input */}
-      <div className="flex-shrink-0 glass-effect border-t border-[--color-sand]/60 px-4 py-3 safe-bottom">
+      <div className="flex-shrink-0 glass-effect border-t border-[var(--color-sand)]/60 px-4 py-3 safe-bottom">
         <form onSubmit={handleSendMessage} className="max-w-lg mx-auto flex gap-2">
           <input
             type="text"
@@ -225,7 +225,7 @@ export default function ChatPage() {
           <button
             type="submit"
             disabled={!newMessage.trim()}
-            className="w-11 h-11 bg-[--color-primary] text-white rounded-full flex items-center justify-center flex-shrink-0 hover:bg-[--color-primary-dark] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            className="w-11 h-11 bg-[var(--color-primary)] text-white rounded-full flex items-center justify-center flex-shrink-0 hover:bg-[var(--color-primary-dark)] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
             aria-label="Send"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13" /><path d="M22 2L15 22L11 13L2 9L22 2Z" /></svg>

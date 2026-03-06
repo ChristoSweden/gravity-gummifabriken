@@ -167,17 +167,17 @@ export default function CampusRadarPage() {
   };
 
   const getStatusBadge = (status: string) => {
-    if (status === 'accepted') return { text: 'Connected', color: 'text-[--color-success] bg-[--color-success]/8' };
-    if (status === 'pending_sent') return { text: 'Pending', color: 'text-[--color-primary] bg-[--color-primary]/8' };
-    if (status === 'pending_received') return { text: 'Respond', color: 'text-[--color-accent] bg-[--color-accent]/10' };
+    if (status === 'accepted') return { text: 'Connected', color: 'text-[var(--color-success)] bg-[var(--color-success)]/8' };
+    if (status === 'pending_sent') return { text: 'Pending', color: 'text-[var(--color-primary)] bg-[var(--color-primary)]/8' };
+    if (status === 'pending_received') return { text: 'Respond', color: 'text-[var(--color-accent)] bg-[var(--color-accent)]/10' };
     return null;
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[--color-bg-warm] flex items-center justify-center">
+      <div className="min-h-screen bg-[var(--color-bg-warm)] flex items-center justify-center">
         <div className="text-center">
-          <div className="w-12 h-12 rounded-full border-2 border-[--color-primary] border-t-transparent animate-spin mx-auto mb-4" />
+          <div className="w-12 h-12 rounded-full border-2 border-[var(--color-primary)] border-t-transparent animate-spin mx-auto mb-4" />
           <p className="section-label">Scanning nearby...</p>
         </div>
       </div>
@@ -185,12 +185,12 @@ export default function CampusRadarPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[--color-bg-warm] pb-24">
+    <div className="min-h-screen bg-[var(--color-bg-warm)] pb-24">
       <div className="max-w-lg mx-auto px-6 pt-8">
         {/* Header */}
         <header className="text-center mb-8">
-          <h2 className="font-serif text-3xl text-[--color-text-header] mb-1">Radar</h2>
-          <p className="text-sm text-[--color-text-secondary]">
+          <h2 className="font-serif text-3xl text-[var(--color-text-header)] mb-1">Radar</h2>
+          <p className="text-sm text-[var(--color-text-secondary)]">
             {APP_CONFIG.RADAR_RADIUS} radius at {APP_CONFIG.LOCATION_NAME}
           </p>
         </header>
@@ -200,7 +200,7 @@ export default function CampusRadarPage() {
           <div className="absolute inset-0 flex items-center justify-center" style={{ transformStyle: 'preserve-3d' }}>
             {/* Radar disc */}
             <div
-              className="relative w-60 h-60 rounded-full border border-[--color-sand]/40"
+              className="relative w-60 h-60 rounded-full border border-[var(--color-sand)]/40"
               style={{
                 transform: 'rotateX(55deg)',
                 background: 'radial-gradient(circle, rgba(184,115,51,0.04) 0%, transparent 70%)',
@@ -210,7 +210,7 @@ export default function CampusRadarPage() {
               {[1, 0.72, 0.44].map((scale, i) => (
                 <div
                   key={i}
-                  className="absolute inset-0 border border-[--color-sand]/30 rounded-full"
+                  className="absolute inset-0 border border-[var(--color-sand)]/30 rounded-full"
                   style={{ transform: `scale(${scale})` }}
                 />
               ))}
@@ -221,15 +221,15 @@ export default function CampusRadarPage() {
                   className="absolute inset-0 rounded-full"
                   style={{ background: 'conic-gradient(from 0deg, rgba(184,115,51,0.15) 0deg, transparent 50deg)', transform: 'rotate(-50deg)' }}
                 />
-                <div className="absolute top-0 left-1/2 -ml-px w-0.5 h-1/2 bg-[--color-primary]/60" />
+                <div className="absolute top-0 left-1/2 -ml-px w-0.5 h-1/2 bg-[var(--color-primary)]/60" />
               </div>
 
               {/* Pulse */}
-              <div className="absolute inset-0 rounded-full border border-[--color-primary]/20 animate-radar-pulse" />
+              <div className="absolute inset-0 rounded-full border border-[var(--color-primary)]/20 animate-radar-pulse" />
             </div>
 
             {/* Center dot */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 bg-[--color-primary] rounded-full shadow-[0_4px_12px_rgba(184,115,51,0.3)] border-2 border-white z-30" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 bg-[var(--color-primary)] rounded-full shadow-[0_4px_12px_rgba(184,115,51,0.3)] border-2 border-white z-30" />
 
             {/* Match pips */}
             {matches.slice(0, 6).map((match, idx) => {
@@ -238,7 +238,7 @@ export default function CampusRadarPage() {
               return (
                 <button
                   key={match.id}
-                  className="absolute w-3.5 h-3.5 bg-[--color-primary] rounded-full animate-pip z-20 shadow-pip border-2 border-white cursor-pointer hover:scale-150 transition-transform"
+                  className="absolute w-3.5 h-3.5 bg-[var(--color-primary)] rounded-full animate-pip z-20 shadow-pip border-2 border-white cursor-pointer hover:scale-150 transition-transform"
                   style={{
                     transform: `translate(-50%, -50%) translate3d(${Math.cos((angle * Math.PI) / 180) * (dist * 0.85)}px, ${Math.sin((angle * Math.PI) / 180) * (dist * 0.42)}px, 0px)`,
                     animationDelay: `${idx * 0.5}s`,
@@ -257,12 +257,12 @@ export default function CampusRadarPage() {
             <p className="section-label mb-3">Your interests</p>
             <div className="flex flex-wrap gap-1.5">
               {userProfile.interests.slice(0, 6).map((interest) => (
-                <span key={interest} className="text-[12px] font-medium text-[--color-primary-dark] bg-[--color-primary]/8 px-3 py-1 rounded-full border border-[--color-primary]/10">
+                <span key={interest} className="text-[12px] font-medium text-[var(--color-primary-dark)] bg-[var(--color-primary)]/8 px-3 py-1 rounded-full border border-[var(--color-primary)]/10">
                   {interest}
                 </span>
               ))}
               {userProfile.interests.length > 6 && (
-                <span className="text-[12px] text-[--color-text-secondary] px-2 py-1">+{userProfile.interests.length - 6} more</span>
+                <span className="text-[12px] text-[var(--color-text-secondary)] px-2 py-1">+{userProfile.interests.length - 6} more</span>
               )}
             </div>
           </div>
@@ -270,18 +270,18 @@ export default function CampusRadarPage() {
 
         {/* Section header */}
         <div className="mb-6">
-          <h3 className="font-serif text-xl text-[--color-text-header] mb-1">Nearby Professionals</h3>
-          <p className="text-[13px] text-[--color-text-secondary]">{matches.length} match{matches.length !== 1 ? 'es' : ''} found</p>
+          <h3 className="font-serif text-xl text-[var(--color-text-header)] mb-1">Nearby Professionals</h3>
+          <p className="text-[13px] text-[var(--color-text-secondary)]">{matches.length} match{matches.length !== 1 ? 'es' : ''} found</p>
         </div>
 
         {/* Match list */}
         {matches.length === 0 ? (
           <div className="card p-10 text-center">
-            <div className="w-14 h-14 bg-[--color-sand-light] rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-14 h-14 bg-[var(--color-sand-light)] rounded-full flex items-center justify-center mx-auto mb-4">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-steel-light)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
             </div>
-            <p className="text-sm text-[--color-text-secondary] mb-2">No matches yet</p>
-            <p className="text-[13px] text-[--color-text-secondary]/70">People with similar interests will appear here when nearby.</p>
+            <p className="text-sm text-[var(--color-text-secondary)] mb-2">No matches yet</p>
+            <p className="text-[13px] text-[var(--color-text-secondary)]/70">People with similar interests will appear here when nearby.</p>
           </div>
         ) : (
           <div className="space-y-3 pb-20">
@@ -311,7 +311,7 @@ export default function CampusRadarPage() {
                       {match.avatar_url ? (
                         <img src={match.avatar_url} alt={match.full_name} className="w-full h-full object-cover" />
                       ) : (
-                        <div className="w-full h-full bg-[--color-primary] flex items-center justify-center text-white font-serif text-lg">
+                        <div className="w-full h-full bg-[var(--color-primary)] flex items-center justify-center text-white font-serif text-lg">
                           {match.full_name?.charAt(0) || '?'}
                         </div>
                       )}
@@ -320,18 +320,18 @@ export default function CampusRadarPage() {
                     {/* Info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-0.5">
-                        <h4 className="font-serif text-[--color-text-header] text-base truncate pr-2">{match.full_name}</h4>
+                        <h4 className="font-serif text-[var(--color-text-header)] text-base truncate pr-2">{match.full_name}</h4>
                         {badge && (
                           <span className={`text-[10px] font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full flex-shrink-0 ${badge.color}`}>
                             {badge.text}
                           </span>
                         )}
                       </div>
-                      <p className="text-[13px] text-[--color-text-secondary] truncate">{match.profession || 'Professional'}</p>
+                      <p className="text-[13px] text-[var(--color-text-secondary)] truncate">{match.profession || 'Professional'}</p>
                       <div className="flex items-center gap-1.5 mt-1.5">
-                        <span className="text-[11px] font-semibold text-[--color-primary]">{match.overlap.length} shared</span>
-                        <span className="text-[11px] text-[--color-text-secondary]">·</span>
-                        <span className="text-[11px] text-[--color-text-secondary] truncate">{match.overlap.slice(0, 2).join(', ')}</span>
+                        <span className="text-[11px] font-semibold text-[var(--color-primary)]">{match.overlap.length} shared</span>
+                        <span className="text-[11px] text-[var(--color-text-secondary)]">·</span>
+                        <span className="text-[11px] text-[var(--color-text-secondary)] truncate">{match.overlap.slice(0, 2).join(', ')}</span>
                       </div>
                     </div>
 
@@ -340,13 +340,13 @@ export default function CampusRadarPage() {
                       <Link
                         to={`/chat/${match.id}`}
                         onClick={(e) => e.stopPropagation()}
-                        className="w-9 h-9 bg-[--color-primary] text-white rounded-full flex items-center justify-center flex-shrink-0 hover:bg-[--color-primary-dark] transition-colors"
+                        className="w-9 h-9 bg-[var(--color-primary)] text-white rounded-full flex items-center justify-center flex-shrink-0 hover:bg-[var(--color-primary-dark)] transition-colors"
                         aria-label={`Message ${match.full_name}`}
                       >
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
                       </Link>
                     ) : status === 'none' ? (
-                      <div className="w-9 h-9 border border-[--color-sand] text-[--color-steel-light] rounded-full flex items-center justify-center flex-shrink-0">
+                      <div className="w-9 h-9 border border-[var(--color-sand)] text-[var(--color-steel-light)] rounded-full flex items-center justify-center flex-shrink-0">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
                       </div>
                     ) : null}
@@ -365,9 +365,9 @@ export default function CampusRadarPage() {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="fixed top-4 left-1/2 -translate-x-1/2 glass-effect border border-[--color-success]/20 px-6 py-3 rounded-full shadow-lg z-[60]"
+            className="fixed top-4 left-1/2 -translate-x-1/2 glass-effect border border-[var(--color-success)]/20 px-6 py-3 rounded-full shadow-lg z-[60]"
           >
-            <p className="text-sm font-semibold text-[--color-success]">Connection request sent</p>
+            <p className="text-sm font-semibold text-[var(--color-success)]">Connection request sent</p>
           </motion.div>
         )}
         {error && (
@@ -375,9 +375,9 @@ export default function CampusRadarPage() {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="fixed top-4 left-1/2 -translate-x-1/2 bg-[--color-error]/5 border border-[--color-error]/15 px-6 py-3 rounded-full shadow-lg z-[60]"
+            className="fixed top-4 left-1/2 -translate-x-1/2 bg-[var(--color-error)]/5 border border-[var(--color-error)]/15 px-6 py-3 rounded-full shadow-lg z-[60]"
           >
-            <p className="text-sm font-semibold text-[--color-error]">{error}</p>
+            <p className="text-sm font-semibold text-[var(--color-error)]">{error}</p>
           </motion.div>
         )}
       </AnimatePresence>
@@ -397,7 +397,7 @@ export default function CampusRadarPage() {
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 40, opacity: 0 }}
               transition={{ type: 'spring', damping: 25 }}
-              className="bg-[--color-bg-warm] w-full max-w-md rounded-t-3xl sm:rounded-3xl p-8 shadow-xl border border-[--color-sand]/50"
+              className="bg-[var(--color-bg-warm)] w-full max-w-md rounded-t-3xl sm:rounded-3xl p-8 shadow-xl border border-[var(--color-sand)]/50"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Profile header */}
@@ -406,14 +406,14 @@ export default function CampusRadarPage() {
                   {selectedMatch.avatar_url ? (
                     <img src={selectedMatch.avatar_url} className="w-full h-full object-cover" alt={selectedMatch.full_name} />
                   ) : (
-                    <div className="w-full h-full bg-[--color-primary] flex items-center justify-center text-white text-2xl font-serif">
+                    <div className="w-full h-full bg-[var(--color-primary)] flex items-center justify-center text-white text-2xl font-serif">
                       {selectedMatch.full_name.charAt(0)}
                     </div>
                   )}
                 </div>
                 <div>
-                  <h3 className="font-serif text-xl text-[--color-text-header]">{selectedMatch.full_name}</h3>
-                  <p className="text-sm text-[--color-text-secondary]">{selectedMatch.profession || 'Professional'}</p>
+                  <h3 className="font-serif text-xl text-[var(--color-text-header)]">{selectedMatch.full_name}</h3>
+                  <p className="text-sm text-[var(--color-text-secondary)]">{selectedMatch.profession || 'Professional'}</p>
                 </div>
               </div>
 
@@ -423,7 +423,7 @@ export default function CampusRadarPage() {
                   <p className="section-label mb-2">{selectedMatch.overlap.length} shared interests</p>
                   <div className="flex flex-wrap gap-1.5">
                     {selectedMatch.overlap.map((interest) => (
-                      <span key={interest} className="text-[12px] font-medium text-[--color-primary-dark] bg-[--color-primary]/8 px-3 py-1 rounded-full">
+                      <span key={interest} className="text-[12px] font-medium text-[var(--color-primary-dark)] bg-[var(--color-primary)]/8 px-3 py-1 rounded-full">
                         {interest}
                       </span>
                     ))}
@@ -456,7 +456,7 @@ export default function CampusRadarPage() {
                 </button>
                 <button
                   onClick={() => { setSelectedMatch(null); setInvitationMessage(''); }}
-                  className="w-full py-2.5 text-sm text-[--color-text-secondary] hover:text-[--color-text-primary] transition-colors"
+                  className="w-full py-2.5 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors"
                 >
                   Cancel
                 </button>

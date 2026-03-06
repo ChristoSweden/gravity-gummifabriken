@@ -31,7 +31,7 @@ function AppLayout() {
   const showNavbar = !isLanding && !isOnboarding && !isLogin && !!user;
 
   return (
-    <div className="min-h-screen bg-[--color-bg-warm] font-sans text-[--color-text-primary] overflow-x-hidden">
+    <div className="min-h-screen bg-[var(--color-bg-warm)] font-sans text-[var(--color-text-primary)] overflow-x-hidden">
       {showNavbar && <Navbar />}
       <ErrorBoundary>
         <AnimatePresence mode="wait">
@@ -46,8 +46,8 @@ function AppLayout() {
             <Suspense fallback={
               <div className="min-h-screen flex items-center justify-center">
                 <div className="text-center">
-                  <div className="w-10 h-10 rounded-full border-2 border-[--color-primary] border-t-transparent animate-spin mx-auto mb-3" />
-                  <p className="text-sm text-[--color-text-secondary]">Loading...</p>
+                  <div className="w-10 h-10 rounded-full border-2 border-[var(--color-primary)] border-t-transparent animate-spin mx-auto mb-3" />
+                  <p className="text-sm text-[var(--color-text-secondary)]">Loading...</p>
                 </div>
               </div>
             }>

@@ -38,17 +38,17 @@ export default function LoginPage() {
   if (loading || user) return null;
 
   return (
-    <div className="min-h-screen bg-[--color-bg-warm] flex flex-col">
+    <div className="min-h-screen bg-[var(--color-bg-warm)] flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-5 max-w-lg mx-auto w-full">
         <button
           onClick={() => navigate('/')}
-          className="w-10 h-10 flex items-center justify-center text-[--color-steel-light] hover:text-[--color-text-primary] transition-colors rounded-lg"
+          className="w-10 h-10 flex items-center justify-center text-[var(--color-steel-light)] hover:text-[var(--color-text-primary)] transition-colors rounded-lg"
           aria-label="Go back"
         >
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
         </button>
-        <span className="font-serif text-2xl text-[--color-text-header]">{APP_CONFIG.APP_NAME}.</span>
+        <span className="font-serif text-2xl text-[var(--color-text-header)]">{APP_CONFIG.APP_NAME}.</span>
         <div className="w-10" />
       </div>
 
@@ -61,10 +61,10 @@ export default function LoginPage() {
           className="w-full max-w-sm"
         >
           <header className="text-center mb-10">
-            <h1 className="font-serif text-3xl text-[--color-text-header] mb-2">
+            <h1 className="font-serif text-3xl text-[var(--color-text-header)] mb-2">
               Welcome back
             </h1>
-            <p className="text-sm text-[--color-text-secondary]">
+            <p className="text-sm text-[var(--color-text-secondary)]">
               Sign in to your account
             </p>
           </header>
@@ -99,9 +99,9 @@ export default function LoginPage() {
               <motion.div
                 initial={{ opacity: 0, y: -4 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-[--color-error]/5 border border-[--color-error]/15 px-4 py-3 rounded-[--radius-md]"
+                className="bg-[var(--color-error)]/5 border border-[var(--color-error)]/15 px-4 py-3 rounded-[var(--radius-md)]"
               >
-                <p className="text-[--color-error] text-sm">{error}</p>
+                <p className="text-[var(--color-error)] text-sm">{error}</p>
               </motion.div>
             )}
 
@@ -119,15 +119,15 @@ export default function LoginPage() {
               onClick={handleDemoLogin}
               className="btn-secondary w-full py-3.5 text-xs flex items-center justify-center gap-2"
             >
-              <span className="w-1.5 h-1.5 bg-[--color-primary] rounded-full animate-gentle-pulse" />
+              <span className="w-1.5 h-1.5 bg-[var(--color-primary)] rounded-full animate-gentle-pulse" />
               Try Demo Mode
             </button>
 
-            <p className="text-sm text-[--color-text-secondary]">
+            <p className="text-sm text-[var(--color-text-secondary)]">
               New to {APP_CONFIG.APP_NAME}?{' '}
               <button
                 onClick={() => navigate('/onboarding')}
-                className="text-[--color-primary] font-semibold hover:underline underline-offset-2"
+                className="text-[var(--color-primary)] font-semibold hover:underline underline-offset-2"
               >
                 Create an account
               </button>

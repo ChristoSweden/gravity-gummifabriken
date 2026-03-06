@@ -50,13 +50,13 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[--color-bg-warm] flex flex-col overflow-hidden">
+    <div className="min-h-screen bg-[var(--color-bg-warm)] flex flex-col overflow-hidden">
       {/* Header */}
       <div className="flex-shrink-0 flex items-center justify-between p-8 max-w-md mx-auto w-full">
-        <button onClick={() => navigate('/')} className="w-10 h-10 flex items-center justify-center text-[--color-steel] hover:opacity-100 transition-all hover:scale-110 active:scale-95">
+        <button onClick={() => navigate('/')} className="w-10 h-10 flex items-center justify-center text-[var(--color-steel)] hover:opacity-100 transition-all hover:scale-110 active:scale-95">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
         </button>
-        <span className="font-serif text-3xl font-bold text-[--color-primary] drop-shadow-sm">Gravity.</span>
+        <span className="font-serif text-3xl font-bold text-[var(--color-primary)] drop-shadow-sm">Gravity.</span>
       </div>
 
       <div className="flex-1 flex items-center justify-center p-8 pb-20">
@@ -66,42 +66,42 @@ export default function RegisterPage() {
           className="w-full max-w-md"
         >
           <header className="text-center mb-12">
-            <h2 className="text-4xl font-serif text-[--color-text-header] uppercase tracking-tight mb-3">Join Nexus</h2>
-            <p className="text-[11px] font-bold text-[--color-steel] opacity-40 uppercase tracking-[0.2em] leading-relaxed">
+            <h2 className="text-4xl font-serif text-[var(--color-text-header)] uppercase tracking-tight mb-3">Join Nexus</h2>
+            <p className="text-[11px] font-bold text-[var(--color-steel)] opacity-40 uppercase tracking-[0.2em] leading-relaxed">
               Create your profile to access<br />exclusive professional circles
             </p>
           </header>
 
           <form className="space-y-6" onSubmit={handleRegister}>
-            <div className="space-y-4 bg-white/70 backdrop-blur-md p-8 rounded-[2.5rem] shadow-premium border border-[--color-sand]">
+            <div className="space-y-4 bg-white/70 backdrop-blur-md p-8 rounded-[2.5rem] shadow-premium border border-[var(--color-sand)]">
               <div>
-                <label className="text-[10px] font-bold text-[--color-steel] opacity-50 uppercase tracking-widest block mb-2 ml-1">Full Name</label>
+                <label className="text-[10px] font-bold text-[var(--color-steel)] opacity-50 uppercase tracking-widest block mb-2 ml-1">Full Name</label>
                 <input
                   type="text"
                   placeholder="Lex Lexington"
-                  className="w-full bg-[--color-bg-warm]/50 border-none p-5 rounded-2xl text-sm font-sans outline-none focus:ring-4 focus:ring-[--color-primary]/10 transition-all"
+                  className="w-full bg-[var(--color-bg-warm)]/50 border-none p-5 rounded-2xl text-sm font-sans outline-none focus:ring-4 focus:ring-[var(--color-primary)]/10 transition-all"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required
                 />
               </div>
               <div>
-                <label className="text-[10px] font-bold text-[--color-steel] opacity-50 uppercase tracking-widest block mb-2 ml-1">Email Identifier</label>
+                <label className="text-[10px] font-bold text-[var(--color-steel)] opacity-50 uppercase tracking-widest block mb-2 ml-1">Email Identifier</label>
                 <input
                   type="email"
                   placeholder="name@nexus.com"
-                  className="w-full bg-[--color-bg-warm]/50 border-none p-5 rounded-2xl text-sm font-sans outline-none focus:ring-4 focus:ring-[--color-primary]/10 transition-all"
+                  className="w-full bg-[var(--color-bg-warm)]/50 border-none p-5 rounded-2xl text-sm font-sans outline-none focus:ring-4 focus:ring-[var(--color-primary)]/10 transition-all"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
                 />
               </div>
               <div>
-                <label className="text-[10px] font-bold text-[--color-steel] opacity-50 uppercase tracking-widest block mb-2 ml-1">Secure Key</label>
+                <label className="text-[10px] font-bold text-[var(--color-steel)] opacity-50 uppercase tracking-widest block mb-2 ml-1">Secure Key</label>
                 <input
                   type="password"
                   placeholder="••••••••"
-                  className="w-full bg-[--color-bg-warm]/50 border-none p-5 rounded-2xl text-sm font-sans outline-none focus:ring-4 focus:ring-[--color-primary]/10 transition-all"
+                  className="w-full bg-[var(--color-bg-warm)]/50 border-none p-5 rounded-2xl text-sm font-sans outline-none focus:ring-4 focus:ring-[var(--color-primary)]/10 transition-all"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -111,7 +111,7 @@ export default function RegisterPage() {
 
             <button
               type="submit"
-              className="w-full bg-[--color-primary] text-[--color-text-header] py-6 rounded-full font-serif text-lg font-bold uppercase tracking-widest shadow-premium hover:scale-[1.02] active:scale-95 transition-all mt-4"
+              className="w-full bg-[var(--color-primary)] text-[var(--color-text-header)] py-6 rounded-full font-serif text-lg font-bold uppercase tracking-widest shadow-premium hover:scale-[1.02] active:scale-95 transition-all mt-4"
             >
               Initialize Profile
             </button>
@@ -137,15 +137,15 @@ export default function RegisterPage() {
           )}
 
           <div className="mt-12 text-center space-y-6">
-            <p className="text-[10px] font-bold text-[--color-steel] opacity-40 uppercase tracking-widest">
+            <p className="text-[10px] font-bold text-[var(--color-steel)] opacity-40 uppercase tracking-widest">
               Already a member?{' '}
-              <Link to="/login" className="text-[--color-primary] hover:opacity-100 transition-all font-black underline underline-offset-4 ml-1">
+              <Link to="/login" className="text-[var(--color-primary)] hover:opacity-100 transition-all font-black underline underline-offset-4 ml-1">
                 Authorized Login
               </Link>
             </p>
             <button
               onClick={() => navigate('/login')}
-              className="text-[10px] font-bold text-[--color-steel] opacity-30 uppercase tracking-[0.2em] hover:opacity-60 transition-all active:scale-95"
+              className="text-[10px] font-bold text-[var(--color-steel)] opacity-30 uppercase tracking-[0.2em] hover:opacity-60 transition-all active:scale-95"
             >
               Or explore Nexus in Demo Mode
             </button>
