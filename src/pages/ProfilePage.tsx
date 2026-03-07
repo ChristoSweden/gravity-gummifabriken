@@ -134,6 +134,16 @@ export default function ProfilePage() {
     setSaving(false);
   };
 
+  const autoSaveToggle = async (field: string, value: boolean) => {
+    if (!user || isDemo) return;
+    await supabase.from('profiles').update({
+      [field]: value,
+      updated_at: new Date().toISOString(),
+    }).eq('id', user.id);
+    setMessage('Settings saved');
+    setTimeout(() => setMessage(null), 2000);
+  };
+
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user || isDemo) return;
@@ -435,9 +445,9 @@ export default function ProfilePage() {
           />
           <div className="section-divider" />
           <div className="py-2">
-            <Toggle value={gpsEnabled} onToggle={() => setGpsEnabled(!gpsEnabled)} label="GPS Location" desc={`Detect proximity to ${APP_CONFIG.LOCATION_NAME}`} />
+            <Toggle value={gpsEnabled} onToggle={() => { const v = !gpsEnabled; setGpsEnabled(v); autoSaveToggle('gps_enabled', v); }} label="GPS Location" desc={`Detect proximity to ${APP_CONFIG.LOCATION_NAME}`} />
             <div className="section-divider my-1" />
-            <Toggle value={notificationsEnabled} onToggle={() => setNotificationsEnabled(!notificationsEnabled)} label="Notifications" desc="Get notified on connection requests" />
+            <Toggle value={notificationsEnabled} onToggle={() => { const v = !notificationsEnabled; setNotificationsEnabled(v); autoSaveToggle('notifications_enabled', v); }} label="Notifications" desc="Get notified on connection requests" />
           </div>
         </section>
 
@@ -447,9 +457,9 @@ export default function ProfilePage() {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-steel-light)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
             <span className="text-[15px] font-medium text-[var(--color-text-primary)]">Privacy Settings</span>
           </div>
-          <Toggle value={isIncognito} onToggle={() => setIsIncognito(!isIncognito)} label="Incognito Mode" desc="Hide your profile from the radar" />
+          <Toggle value={isIncognito} onToggle={() => { const v = !isIncognito; setIsIncognito(v); autoSaveToggle('is_incognito', v); }} label="Incognito Mode" desc="Hide your profile from the radar" />
           <div className="section-divider my-1" />
-          <Toggle value={profileBlur} onToggle={() => setProfileBlur(!profileBlur)} label="Profile Blur" desc="Blur details for unconnected users" />
+          <Toggle value={profileBlur} onToggle={() => { const v = !profileBlur; setProfileBlur(v); autoSaveToggle('profile_blur', v); }} label="Profile Blur" desc="Blur details for unconnected users" />
         </section>
 
         {/* GDPR Compliance */}
@@ -470,31 +480,6 @@ export default function ProfilePage() {
             </button>
           </div>
         </section>
-
-        {/* Save settings (GPS, notifications, privacy) */}
-        {!editing && (
-          <button
-            type="button"
-            onClick={async () => {
-              if (!user || isDemo) return;
-              setSaving(true);
-              await supabase.from('profiles').update({
-                gps_enabled: gpsEnabled,
-                notifications_enabled: notificationsEnabled,
-                is_incognito: isIncognito,
-                profile_blur: profileBlur,
-                updated_at: new Date().toISOString(),
-              }).eq('id', user.id);
-              setSaving(false);
-              setMessage('Settings saved');
-              setTimeout(() => setMessage(null), 3000);
-            }}
-            disabled={saving}
-            className="btn-primary w-full py-3.5 text-xs mb-6"
-          >
-            {saving ? 'Saving...' : 'Save Settings'}
-          </button>
-        )}
 
         {/* Sign out */}
         <button

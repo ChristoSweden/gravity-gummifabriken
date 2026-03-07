@@ -10,6 +10,7 @@ export default function Navbar() {
   const { user, isDemo } = useAuth();
   const location = useLocation();
   const [pendingCount, setPendingCount] = useState(0);
+  const [unreadMsgCount, setUnreadMsgCount] = useState(0);
 
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + '/');
   const isAdmin = user && (
@@ -43,6 +44,62 @@ export default function Navbar() {
     document.addEventListener('visibilitychange', onFocus);
     return () => document.removeEventListener('visibilitychange', onFocus);
   }, [user, isDemo, location.pathname]);
+
+  // Unread message badge: count conversations where the latest message is from the other person
+  useEffect(() => {
+    if (!user) { setUnreadMsgCount(0); return; }
+    if (isDemo) { setUnreadMsgCount(0); return; }
+
+    const fetchUnread = async () => {
+      // Get the most recent messages received (not sent by us)
+      const { data: received } = await supabase
+        .from('messages')
+        .select('sender_id, created_at')
+        .eq('recipient_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (!received || received.length === 0) { setUnreadMsgCount(0); return; }
+
+      // Get the most recent message we sent per conversation
+      const { data: sent } = await supabase
+        .from('messages')
+        .select('recipient_id, created_at')
+        .eq('sender_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      // For each unique sender, check if their latest message is newer than our latest reply
+      const latestSentTo: Record<string, string> = {};
+      (sent || []).forEach((m) => {
+        if (!latestSentTo[m.recipient_id]) latestSentTo[m.recipient_id] = m.created_at;
+      });
+
+      const latestReceivedFrom: Record<string, string> = {};
+      received.forEach((m) => {
+        if (!latestReceivedFrom[m.sender_id]) latestReceivedFrom[m.sender_id] = m.created_at;
+      });
+
+      let unread = 0;
+      for (const [senderId, receivedAt] of Object.entries(latestReceivedFrom)) {
+        const repliedAt = latestSentTo[senderId];
+        if (!repliedAt || new Date(receivedAt) > new Date(repliedAt)) {
+          unread++;
+        }
+      }
+      setUnreadMsgCount(unread);
+    };
+
+    fetchUnread();
+
+    // Refresh on new incoming messages via realtime
+    const channel = supabase
+      .channel('navbar-unread')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `recipient_id=eq.${user.id}` }, () => fetchUnread())
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [user, isDemo]);
 
   // Unauthenticated: minimal top bar
   if (!user) {
@@ -94,6 +151,7 @@ export default function Navbar() {
     {
       to: '/chat',
       label: 'Messages',
+      badge: unreadMsgCount || undefined,
       icon: (active: boolean) => (
         <svg width="22" height="22" viewBox="0 0 24 24" fill={active ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />

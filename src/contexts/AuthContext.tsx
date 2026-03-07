@@ -18,7 +18,9 @@ interface AuthContextType {
   loading: boolean;
   isDemo: boolean;
   needsOnboarding: boolean;
+  needsPasswordSetup: boolean;
   setNeedsOnboarding: (v: boolean) => void;
+  setNeedsPasswordSetup: (v: boolean) => void;
   enterDemoMode: () => void;
   logout: () => void;
 }
@@ -31,6 +33,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [isDemo, setIsDemo] = useState(false);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  const [needsPasswordSetup, setNeedsPasswordSetup] = useState(false);
 
   useEffect(() => {
     if (isDemoMode()) {
@@ -79,6 +82,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setSession(session);
         setUser(session?.user || null);
         setLoading(false);
+
+        if (event === 'PASSWORD_RECOVERY' && session?.user) {
+          setNeedsPasswordSetup(true);
+        }
 
         if (event === 'SIGNED_IN' && session?.user) {
           // Apply any pending profile data from pre-signup onboarding
@@ -137,7 +144,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, loading, isDemo, needsOnboarding, setNeedsOnboarding, enterDemoMode: enterDemo, logout }}>
+    <AuthContext.Provider value={{ session, user, loading, isDemo, needsOnboarding, needsPasswordSetup, setNeedsOnboarding, setNeedsPasswordSetup, enterDemoMode: enterDemo, logout }}>
       {children}
     </AuthContext.Provider>
   );
