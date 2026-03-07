@@ -138,7 +138,16 @@ export default function ConversationsPage() {
       })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    // Refresh when app comes back to foreground
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') fetchConversations();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      supabase.removeChannel(channel);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, [user, isDemo]);
 
   if (loading) {

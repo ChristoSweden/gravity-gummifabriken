@@ -196,7 +196,9 @@ export default function CampusRadarPage() {
       .or(`id.eq.${user.id},and(is_present.eq.true,last_seen_at.gte.${stalenessCutoff})`);
 
     if (pError || !profiles) {
-      setError('Unable to load nearby profiles. Please try again.');
+      setError('Unable to load nearby profiles.');
+      // Auto-retry once after 3 seconds
+      setTimeout(() => fetchData(), 3000);
       setLoading(false);
       return;
     }
@@ -334,11 +336,23 @@ export default function CampusRadarPage() {
       .channel('radar-profiles')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, debouncedFetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'connections' }, debouncedFetch)
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'CHANNEL_ERROR') {
+          // Auto-reconnect after channel error
+          setTimeout(() => { supabase.removeChannel(channel); fetchData(); }, 5000);
+        }
+      });
+
+    // Refresh data when app comes back to foreground
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') debouncedFetch();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
 
     return () => {
       if (debounceTimer) clearTimeout(debounceTimer);
       supabase.removeChannel(channel);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, [fetchData, checkGpsPresence]);
 
@@ -806,8 +820,9 @@ export default function CampusRadarPage() {
       <AnimatePresence>
         {error && (
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
-            className="fixed top-4 left-1/2 -translate-x-1/2 bg-[#C24B3B]/10 border border-[#C24B3B]/20 px-6 py-3 rounded-full shadow-lg z-[110]">
+            className="fixed top-4 left-1/2 -translate-x-1/2 bg-[#C24B3B]/10 border border-[#C24B3B]/20 px-6 py-3 rounded-full shadow-lg z-[110] flex items-center gap-3">
             <p className="text-sm font-semibold text-[#C24B3B]">{error}</p>
+            <button onClick={() => { setError(null); fetchData(); }} className="text-xs font-bold text-[#C24B3B] underline flex-shrink-0">Retry</button>
           </motion.div>
         )}
       </AnimatePresence>

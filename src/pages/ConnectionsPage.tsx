@@ -106,9 +106,15 @@ export default function ConnectionsPage() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'connections', filter: `requester_id=eq.${user.id}` }, debouncedFetch)
       .subscribe();
 
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') debouncedFetch();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
     return () => {
       if (debounceTimer) clearTimeout(debounceTimer);
       supabase.removeChannel(channel);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, [user, fetchConnections]);
 

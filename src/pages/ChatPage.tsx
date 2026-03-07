@@ -193,19 +193,36 @@ export default function ChatPage() {
     if (!user) return;
     broadcastTyping(false);
     if (typingTimeout.current) clearTimeout(typingTimeout.current);
+
+    const content = newMessage.trim();
+    // Optimistic: show message immediately with a temporary ID
+    const tempId = `temp-${Date.now()}`;
+    const optimistic: Message = {
+      id: tempId,
+      sender_id: user.id,
+      recipient_id: userId,
+      content,
+      created_at: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, optimistic]);
+    setNewMessage('');
+    if (textareaRef.current) textareaRef.current.style.height = 'auto';
+
     const { data, error } = await supabase
       .from('messages')
-      .insert([{ sender_id: user.id, recipient_id: userId, content: newMessage.trim() }])
+      .insert([{ sender_id: user.id, recipient_id: userId, content }])
       .select()
       .single();
 
     if (error) {
+      // Remove the optimistic message and restore the text
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
+      setNewMessage(content);
       setSendError('Message failed to send. Please try again.');
       setTimeout(() => setSendError(null), 4000);
     } else if (data) {
-      setMessages((prev) => [...prev, data]);
-      setNewMessage('');
-      if (textareaRef.current) textareaRef.current.style.height = 'auto';
+      // Replace optimistic message with real one
+      setMessages((prev) => prev.map((m) => m.id === tempId ? data : m));
     }
   };
 
@@ -551,11 +568,12 @@ export default function ChatPage() {
               ref={textareaRef}
               rows={1}
               value={newMessage}
-              onChange={(e) => { setNewMessage(e.target.value); adjustTextarea(); handleTyping(); }}
+              onChange={(e) => { if (e.target.value.length <= 5000) { setNewMessage(e.target.value); adjustTextarea(); handleTyping(); } }}
               onKeyDown={handleKeyDown}
               placeholder="Message..."
               className="w-full text-[15px] text-[var(--color-text-primary)] bg-transparent outline-none resize-none placeholder:text-[var(--color-steel-light)]/60 leading-relaxed"
               style={{ maxHeight: '120px', overflowY: 'auto' }}
+              maxLength={5000}
               aria-label="Message"
             />
           </div>

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gravity-v1';
+const CACHE_NAME = 'gravity-v2';
 const PRECACHE_URLS = ['/', '/index.html'];
 
 self.addEventListener('install', (event) => {
@@ -18,17 +18,30 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Network-first for API calls and navigation, cache-first for static assets
   const url = new URL(event.request.url);
 
+  // Skip non-GET requests
+  if (event.request.method !== 'GET') return;
+
+  // Skip Supabase API calls — always network
+  if (url.hostname.includes('supabase')) return;
+
+  // Navigation: network first, fallback to cached shell
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request).catch(() => caches.match('/index.html'))
+      fetch(event.request)
+        .then((response) => {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          return response;
+        })
+        .catch(() => caches.match('/index.html'))
     );
     return;
   }
 
-  if (url.pathname.startsWith('/assets/')) {
+  // Static assets: cache first
+  if (url.pathname.startsWith('/assets/') || url.pathname.endsWith('.png') || url.pathname.endsWith('.json')) {
     event.respondWith(
       caches.match(event.request).then((cached) =>
         cached || fetch(event.request).then((response) => {
@@ -41,8 +54,16 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Default: network only
-  event.respondWith(fetch(event.request));
+  // Default: network first, fallback to cache
+  event.respondWith(
+    fetch(event.request)
+      .then((response) => {
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        return response;
+      })
+      .catch(() => caches.match(event.request))
+  );
 });
 
 // ── Push Notifications ──
