@@ -183,7 +183,7 @@ export default function AdminPage() {
               onClick={() => setTab(t)}
               className={`flex-1 py-2.5 text-[12px] font-semibold uppercase tracking-widest rounded-xl transition-all ${
                 tab === t
-                  ? 'bg-white text-[var(--color-text-header)] shadow-sm'
+                  ? 'bg-[var(--color-bg-card)] text-[var(--color-text-header)] shadow-sm'
                   : 'text-[var(--color-steel-light)] hover:text-[var(--color-text-primary)]'
               }`}
             >

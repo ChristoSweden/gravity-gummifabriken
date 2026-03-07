@@ -976,7 +976,7 @@ export default function CampusRadarPage() {
 
                 {/* Message display */}
                 {pendingReviewRequest.message && (
-                  <div className="bg-white/60 backdrop-blur-md rounded-2xl p-5 border border-[var(--color-sand)]/60 italic">
+                  <div className="bg-[var(--color-bg-card)]/80 backdrop-blur-md rounded-2xl p-5 border border-[var(--color-sand)]/60 italic">
                     <p className="text-[13px] text-[var(--color-text-primary)] leading-relaxed">
                       "{pendingReviewRequest.message}"
                     </p>

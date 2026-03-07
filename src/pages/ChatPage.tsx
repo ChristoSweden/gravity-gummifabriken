@@ -546,7 +546,7 @@ export default function ChatPage() {
       {/* ── Input bar ── */}
       <div className="flex-shrink-0 bg-[var(--color-bg-warm)] border-t border-[var(--color-sand)]/60 px-4 py-3 safe-bottom">
         <div className="max-w-lg mx-auto flex items-end gap-2">
-          <div className="flex-1 bg-white border border-[var(--color-sand)] rounded-2xl px-4 py-2.5 focus-within:border-[var(--color-primary)] focus-within:shadow-[0_0_0_3px_rgba(184,115,51,0.08)] transition-all">
+          <div className="flex-1 bg-[var(--color-bg-card)] border border-[var(--color-sand)] rounded-2xl px-4 py-2.5 focus-within:border-[var(--color-primary)] focus-within:shadow-[0_0_0_3px_rgba(184,115,51,0.08)] transition-all">
             <textarea
               ref={textareaRef}
               rows={1}

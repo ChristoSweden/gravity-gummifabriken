@@ -10,10 +10,8 @@ interface State {
 }
 
 class ErrorBoundary extends Component<Props, State> {
-    constructor(props: Props) {
-        super(props);
-        this.state = { hasError: false };
-    }
+    declare props: Props;
+    state: State = { hasError: false };
 
     public static getDerivedStateFromError(_: Error): State {
         return { hasError: true };
@@ -27,7 +25,7 @@ class ErrorBoundary extends Component<Props, State> {
         if (this.state.hasError) {
             return this.props.fallback || (
                 <div className="min-h-screen flex items-center justify-center p-4 bg-[var(--color-bg-warm)]">
-                    <div className="bg-white p-8 rounded-2xl shadow-sm border border-[var(--color-mist)] text-center max-w-md">
+                    <div className="bg-[var(--color-bg-card)] p-8 rounded-2xl shadow-sm border border-[var(--color-mist)] text-center max-w-md">
                         <h2 className="text-2xl font-brand font-bold text-[var(--color-primary)] mb-4 uppercase">Something went wrong</h2>
                         <p className="text-[var(--color-steel)] mb-6">The page couldn't load correctly.</p>
                         <button

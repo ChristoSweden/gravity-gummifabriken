@@ -88,7 +88,7 @@ export default function ConversationsPage() {
         supabase.from('profiles').select('id, full_name, profession, avatar_url').in('id', otherIds),
         supabase
           .from('messages')
-          .select('sender_id, recipient_id, content, created_at')
+          .select('sender_id, recipient_id, content, created_at, read_at')
           .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
           .order('created_at', { ascending: false }),
       ]);
@@ -97,7 +97,7 @@ export default function ConversationsPage() {
       (profiles || []).forEach((p) => { profileMap[p.id] = p; });
 
       // Group latest message per conversation partner
-      const latestPerUser: Record<string, { content: string; created_at: string; sender_id: string }> = {};
+      const latestPerUser: Record<string, { content: string; created_at: string; sender_id: string; read_at?: string | null }> = {};
       (messages || []).forEach((m) => {
         const otherId = m.sender_id === user.id ? m.recipient_id : m.sender_id;
         if (!otherIds.includes(otherId)) return;
@@ -115,7 +115,7 @@ export default function ConversationsPage() {
             avatarUrl: profile?.avatar_url || '',
             lastMessage: latest?.content || '',
             lastMessageAt: latest?.created_at || '',
-            isUnread: latest ? latest.sender_id !== user.id : false,
+            isUnread: latest ? (latest.sender_id !== user.id && !latest.read_at) : false,
           };
         })
         .sort((a, b) => {

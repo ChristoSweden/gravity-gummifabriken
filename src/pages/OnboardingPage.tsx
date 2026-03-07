@@ -326,7 +326,7 @@ export default function OnboardingPage() {
                       className={`px-3.5 py-2 rounded-full text-[12px] font-medium border transition-all ${
                         sel
                           ? 'bg-[var(--color-primary)] border-[var(--color-primary)] text-white'
-                          : 'bg-white border-[var(--color-sand)] text-[var(--color-text-primary)] hover:border-[var(--color-primary-light)] disabled:opacity-40'
+                          : 'bg-[var(--color-bg-card)] border-[var(--color-sand)] text-[var(--color-text-primary)] hover:border-[var(--color-primary-light)] disabled:opacity-40'
                       }`}
                     >
                       {sel ? (
