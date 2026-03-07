@@ -28,8 +28,13 @@ The palette has TWO tiers with distinct roles.
 
 > **Decision (March 2026):** Deep Space Indigo was part of the original brand deck for
 > presentation slides and print materials. For the web/mobile app, we skip Indigo and let
-> Warm Sand + Kinetic Copper carry the identity. The warm palette IS the app experience —
-> restorative and calming, not dark and heavy.
+> Warm Sand + Kinetic Copper carry the identity on content pages (profile, connections, chat, onboarding).
+>
+> **Update (March 2026):** The **Landing Page** and **Radar Page** now use a dark cinematic
+> theme (`#0D0B09` near-black) to create dramatic first impressions and make the radar
+> feel like a real instrument. Cards and surfaces on dark pages use `#1A1714` with `#2A2522`
+> borders. Text shifts to `#E8E0D4` (warm off-white) and `#A09890` (muted stone).
+> The warm sand palette remains the default for all other authenticated pages.
 
 ### Warm Sand — Primary Surface. Humanity & Restoration.
 ```
@@ -60,13 +65,23 @@ The palette has TWO tiers with distinct roles.
 --color-steel-light:   #7A7572   (tertiary text, placeholders)
 ```
 
+### Dark Cinematic — Landing & Radar surfaces
+```
+--color-bg-dark:       #0D0B09   (landing + radar page backgrounds)
+--color-dark-card:     #1A1714   (cards, surfaces, pip backgrounds on dark pages)
+--color-dark-border:   #2A2522   (borders, dividers on dark pages)
+--color-dark-text:     #E8E0D4   (headings on dark pages)
+--color-dark-muted:    #A09890   (body text on dark pages)
+```
+- **Use for:** Landing page, Radar page only. All other pages use Warm Sand.
+
 ### Palette hierarchy rule
-> **Sand breathes. Copper sparks.**
+> **Sand breathes. Copper sparks. Dark dramatises.**
 >
-> Sand should be the dominant surface colour (60-70% of any screen).
+> On light pages (profile, chat, connections, onboarding): Sand is the dominant surface (60-70%).
 > Copper is reserved for actions, highlights, and interactive elements.
-> If a page feels busy or urgent, there's too much Copper.
-> Use white cards and mist backgrounds to create depth within the warm canvas.
+> On dark pages (landing, radar): `#0D0B09` is the canvas; `#1A1714` cards create depth.
+> Copper and gold accents glow against the dark background for cinematic effect.
 
 ---
 
@@ -279,13 +294,19 @@ The Nano Banana design uses a **bottom tab bar**, not a top navbar, for authenti
 ### 6.1 Landing Page
 **Reference:** image001
 
-- Full-screen, centred vertically
-- Background: `--color-bg-warm`
-- Logo: 120-140px, inside a circular frame with copper ring (2px border, `--color-copper` at 30% opacity), subtle glow
-- "Gravity." in Playfair 700, ~48px
-- "Proximity creates Opportunity." in Playfair 400 italic, copper colour
-- Two full-width buttons stacked: "Create Your Account" (primary), "Log In" (secondary)
-- Optional: "Skip to Demo" as ghost text link below
+**Dark cinematic full-screen splash — single viewport, vertically centred.**
+
+- **Background:** `#0D0B09` (near-black), NOT warm sand
+- **Ambient glow:** Radial gradient behind logo area: `radial-gradient(ellipse 80% 50% at 50% 30%, rgba(184,115,51,0.18) 0%, rgba(139,90,43,0.08) 30%, transparent 65%)`
+- **Logo:** Large (144-192px), centred, with copper bloom glow behind it (`radial-gradient(circle, rgba(184,115,51,0.35) 0%, transparent 70%)`) and `drop-shadow(0 8px 40px rgba(184,115,51,0.5))`
+- **"Gravity"** heading: Playfair 700, 36-48px, **white** (`#FFFFFF`), wide tracking — directly below logo
+- **Tagline:** "Proximity creates opportunity." in Playfair 400 italic, copper-light `#D4956A`
+- **Description:** Inter 400, 15px, muted stone `#A09890`, max-width 280px, centred
+- **CTAs (stacked, full-width, max-w 320px):**
+  1. **Get Started** — copper gradient fill (`linear-gradient(135deg, #D4956A 0%, #B87333 50%, #8B5A2B 100%)`), white text, Playfair bold uppercase, heavy box-shadow
+  2. **Log In** — transparent, gold `#D4AF37` outline border (40% opacity), gold text
+  3. **Try Demo** — ghost link, `#7A7572` text, hover `#D4956A`, uppercase tracking-widest
+- **Decorative:** Small gold sparkle SVG (4-point star) in bottom-right corner, 60% opacity
 
 ### 6.2 Onboarding (3 Steps)
 **Reference:** image002, image003, image004
@@ -315,22 +336,55 @@ The Nano Banana design uses a **bottom tab bar**, not a top navbar, for authenti
 ### 6.3 Radar (Home)
 **Reference:** image005, image008
 
-**Top bar:** "Gravity." left, "ACTIVE" badge right
-**Radar visualisation:**
-- Concentric rings (3) on warm cream, subtle copper tint
-- Copper sweep animation (conic gradient, rotating)
-- User pips: Small copper dots, YOUR position = centre dot (larger, darker)
-- Background: Same warm cream as page
+**Dark cinematic radar — full dark theme matching landing page.**
 
-**Below radar:**
-- "NEARBY PROFESSIONALS" section label (left), "X Active" count (right, copper)
-- List of profile cards:
-  - Avatar (40px, rounded with slight border-radius) | Name (Playfair 700) + Role (Inter, steel) | Distance + Match %
-  - Distance in metres, copper colour
-  - Match % in a copper/gold pill badge
-  - If pending: "AWAITING REPLY" label in uppercase Inter, copper
+- **Page background:** `#0D0B09` (near-black), NOT warm sand
+- **Card/surface colour:** `#1A1714` (dark charcoal) with `#2A2522` borders
+- **Text colours:** Headings `#E8E0D4` (warm off-white), body `#A09890` (muted stone), labels `#7A7572` (steel-light)
 
-**Tapping a card:** Opens profile detail modal (see 5.3)
+**Status row:** Radius label (left, `#7A7572`), status pill (right):
+- **Active/Scanning:** Gold `#D4AF37` border + text, pulsing gold dot, "SCANNING" uppercase
+- **Locating:** Steel `#4A4543` border, `#7A7572` text, pulsing grey dot
+- **Offline:** Steel `#4A4543` border, `#7A7572` text, static grey dot
+
+**Radar visualisation (320×320px circle):**
+- **Ambient glow:** Radial gradient copper bloom behind radar (`rgba(184,115,51,0.12)`)
+- **Radar disc:** Outer `#B87333/30` border, inner radial gradient from `rgba(184,115,51,0.08)` centre to `#0D0B09` edge
+- **Concentric rings (3):** Copper `#B87333` at 15% opacity, scales `[0.78, 0.56, 0.34]`
+- **Grid lines:** Vertical + horizontal crosshairs (`#B87333/10`), two diagonal lines (`#B87333/8`)
+- **Sweep beam:** Rotating `conic-gradient(from 0deg, rgba(212,175,55,0.28) 0deg, rgba(184,115,51,0.12) 20deg, transparent 55deg)` with a gold leading-edge line (`rgba(212,175,55,0.6)` to transparent). Animation: `5s linear infinite` rotation
+- **Pulse ring:** Expanding ring at outer edge, copper `#B87333/25`, pulsing outward
+- **Centre:** Gravity logo (48px, rounded-full), copper border, copper blur glow behind it, `box-shadow: 0 0 24px rgba(184,115,51,0.5)`
+
+**Pips (user markers):**
+- 36px round avatars positioned at fixed angle/radius offsets from centre
+- **Connected (accepted):** Shows real avatar, green `#3D8B5F` border
+- **Pending:** Gold `#D4AF37` border
+- **Unknown:** Dark `#1A1714` background with serif "G" letter in `#D4AF37/70` (GDPR blur — identity hidden until connected)
+- Copper glow shadow on all pips: `box-shadow: 0 0 12px rgba(184,115,51,0.3)`
+- Distance label below pip: `9px` semibold `#7A7572`, e.g. "45m"
+- Hover tooltip above pip: dark `#1A1714` rounded card with `#E8E0D4` text, shows first name (if connected) or profession (if not)
+
+**Activity feed (horizontal scroll):**
+- Dark pill chips: `#1A1714/80` backdrop-blur, `#2A2522` border, rounded-full
+- Green dot for joins, gold dot for connections
+- Text: `#E8E0D4` 11px, timestamp `#7A7572` 10px
+
+**Below radar — "NEARBY PROFESSIONALS" section:**
+- Section label: `#7A7572` uppercase tracking, "X Active" count in `#D4956A`
+- **Match cards:** Dark `#1A1714` background, `#2A2522` border, rounded-2xl
+  - Avatar (40px) | Name (Playfair 700, `#E8E0D4`) + Role (Inter, `#7A7572`) | Distance (copper `#B87333`) + Match % (gold `#D4AF37` pill)
+  - If pending: "AWAITING REPLY" label in `#D4AF37` uppercase
+  - Hover: border shifts to `#B87333/40`
+- **Empty state:** Dark card with copper icon, "SCANNING" or "No one nearby" message
+
+**Tapping a card:** Opens profile detail modal (dark themed, see 5.3)
+
+**Connection review modal (on pending received):**
+- Dark overlay with dark `#1A1714` card, `#2A2522` border
+- Shows requester avatar, name (Playfair), profession, interest tags (dark mist pills)
+- **Accept Connection** button: copper `#B87333` fill → immediately navigates to chat page
+- **Decline** button: transparent with `#7A7572` text
 
 ### 6.4 Profile Page
 **Reference:** image010, image011
@@ -459,6 +513,10 @@ The Nano Banana design uses a **bottom tab bar**, not a top navbar, for authenti
 | **Confirmation modal** | Green check modal for connection requests implemented |
 | **Chat bubbles** | Copper sent, white received, timestamps below groups |
 | **Admin access** | Icon in top bar, visible only for ADMIN_EMAILS |
+| **Landing page** | Dark cinematic theme (`#0D0B09`), copper glow, gradient CTA, gold sparkle |
+| **Radar page** | Dark cinematic theme, copper rings, golden sweep beam, "SCANNING" pill, "G" pips with GDPR blur |
+| **Accept → Chat** | Accepting a connection immediately opens the chat page |
+| **Chat navbar** | Top header + bottom tab bar hidden on `/chat/:userId` for full-screen chat |
 
 ---
 
@@ -493,7 +551,7 @@ When implementing, use these CSS custom properties (defined in `src/index.css`):
 --color-primary-light: #D4956A;
 --color-primary-dark:  #8B5A2B;
 --color-accent:        #D4AF37;  /* Gold highlight */
---color-bg-warm:       #FAF7F2;  /* Warm sand background */
+--color-bg-warm:       #FAF7F2;  /* Warm sand background (light pages) */
 --color-bg-card:       #FFFFFF;
 --color-sand:          #E8E0D4;
 --color-mist:          #F5F0E8;
@@ -504,9 +562,16 @@ When implementing, use these CSS custom properties (defined in `src/index.css`):
 --color-steel-light:   #7A7572;
 --color-success:       #3D8B5F;
 --color-error:         #C24B3B;
+
+/* Dark cinematic tokens (landing + radar pages — inline, not CSS vars) */
+/* #0D0B09  — page background */
+/* #1A1714  — card/surface background */
+/* #2A2522  — borders, dividers */
+/* #E8E0D4  — headings on dark */
+/* #A09890  — body text on dark */
 ```
 
 ---
 
-*Last updated from Nano Banana Pro brand deck, March 2026.*
+*Last updated March 2026 — dark cinematic landing + radar redesign.*
 *When in doubt, refer to the mockup images in `design/` — they are the ground truth.*
