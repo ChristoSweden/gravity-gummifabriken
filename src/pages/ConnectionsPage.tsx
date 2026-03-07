@@ -214,7 +214,9 @@ export default function ConnectionsPage() {
 
             {accepted.length === 0 && pendingRequests.length === 0 && (
               <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="card p-12 text-center">
-                <div className="text-5xl mb-4">🤝</div>
+                <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-[var(--color-mist)] flex items-center justify-center text-[var(--color-primary)]">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                </div>
                 <h3 className="font-serif text-lg text-[var(--color-text-header)] mb-2">Your network starts here</h3>
                 <p className="text-sm text-[var(--color-text-secondary)] mb-6 max-w-[260px] mx-auto">
                   Open the radar to discover professionals nearby who share your interests. One connection is all it takes.

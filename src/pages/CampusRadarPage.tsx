@@ -614,8 +614,12 @@ export default function CampusRadarPage() {
         {/* Match list */}
         {matches.length === 0 ? (
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="card p-12 text-center">
-            <div className="text-5xl mb-4">
-              {presenceStatus === 'present' || presenceStatus === 'manual' || isDemo ? '🔭' : '🌍'}
+            <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-[var(--color-mist)] flex items-center justify-center text-[var(--color-primary)]">
+              {presenceStatus === 'present' || presenceStatus === 'manual' || isDemo ? (
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/><line x1="12" y1="2" x2="12" y2="6"/></svg>
+              ) : (
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+              )}
             </div>
             <h3 className="font-serif text-lg text-[var(--color-text-header)] mb-2">
               {presenceStatus === 'present' || presenceStatus === 'manual' || isDemo
