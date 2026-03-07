@@ -51,8 +51,16 @@ export default function LandingPage() {
           </div>
         </div>
 
+        {/* App name */}
+        <h1
+          className="font-serif text-4xl sm:text-5xl text-white tracking-wide animate-fade-in"
+          style={{ animationDelay: '0.3s' }}
+        >
+          Gravity
+        </h1>
+
         {/* Tagline */}
-        <div className="text-center animate-fade-in" style={{ animationDelay: '0.35s' }}>
+        <div className="mt-3 text-center animate-fade-in" style={{ animationDelay: '0.45s' }}>
           <p className="font-serif italic text-lg sm:text-xl text-[#D4956A]">
             Proximity creates opportunity.
           </p>
