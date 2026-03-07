@@ -45,6 +45,7 @@ export default function ProfilePage() {
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [networkCount, setNetworkCount] = useState(0);
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('gravity-theme') === 'dark');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -194,6 +195,13 @@ export default function ProfilePage() {
     } else if (e.key === 'Backspace' && !interestInput && interestTags.length > 0) {
       setInterestTags(interestTags.slice(0, -1));
     }
+  };
+
+  const toggleDarkMode = () => {
+    const next = !darkMode;
+    setDarkMode(next);
+    document.documentElement.setAttribute('data-theme', next ? 'dark' : 'light');
+    localStorage.setItem('gravity-theme', next ? 'dark' : 'light');
   };
 
   const handleExportData = async () => {
@@ -447,7 +455,34 @@ export default function ProfilePage() {
           <div className="py-2">
             <Toggle value={gpsEnabled} onToggle={() => { const v = !gpsEnabled; setGpsEnabled(v); autoSaveToggle('gps_enabled', v); }} label="GPS Location" desc={`Detect proximity to ${APP_CONFIG.LOCATION_NAME}`} />
             <div className="section-divider my-1" />
-            <Toggle value={notificationsEnabled} onToggle={() => { const v = !notificationsEnabled; setNotificationsEnabled(v); autoSaveToggle('notifications_enabled', v); }} label="Notifications" desc="Get notified on connection requests" />
+            <Toggle value={notificationsEnabled} onToggle={async () => {
+              const v = !notificationsEnabled;
+              setNotificationsEnabled(v);
+              autoSaveToggle('notifications_enabled', v);
+              if (v && 'Notification' in window && Notification.permission === 'default') {
+                const perm = await Notification.requestPermission();
+                if (perm === 'granted' && 'serviceWorker' in navigator) {
+                  const reg = await navigator.serviceWorker.ready;
+                  const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+                  if (vapidKey) {
+                    try {
+                      const sub = await reg.pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: vapidKey,
+                      });
+                      // Store subscription on server
+                      await supabase.from('push_subscriptions').upsert({
+                        user_id: user!.id,
+                        subscription: JSON.stringify(sub),
+                        updated_at: new Date().toISOString(),
+                      });
+                    } catch { /* push not supported */ }
+                  }
+                }
+              }
+            }} label="Push Notifications" desc="Get notified on connection requests" />
+            <div className="section-divider my-1" />
+            <Toggle value={darkMode} onToggle={toggleDarkMode} label="Dark Mode" desc="Easier on the eyes at night" />
           </div>
         </section>
 

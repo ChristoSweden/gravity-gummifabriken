@@ -27,6 +27,48 @@
   --radius-full: 9999px;
 }
 
+/* ─── Dark Theme ─── */
+[data-theme="dark"] {
+  --color-bg-warm: #0D0B09;
+  --color-bg-card: #1A1714;
+  --color-sand: #2A2522;
+  --color-sand-light: #1F1C18;
+  --color-mist: #151310;
+  --color-text-primary: #E8E0D4;
+  --color-text-header: #F5F0E8;
+  --color-text-secondary: #A09890;
+  --color-steel: #A09890;
+  --color-steel-light: #7A7572;
+}
+
+[data-theme="dark"] .glass-effect {
+  background: rgba(13, 11, 9, 0.85);
+}
+
+[data-theme="dark"] .card {
+  background: var(--color-bg-card);
+  border-color: var(--color-sand);
+}
+
+[data-theme="dark"] .input-field {
+  background: var(--color-bg-card);
+  border-color: var(--color-sand);
+  color: var(--color-text-primary);
+}
+
+[data-theme="dark"] .btn-secondary {
+  color: var(--color-text-primary);
+  border-color: var(--color-sand);
+}
+
+[data-theme="dark"] .btn-secondary:hover {
+  background: var(--color-bg-card);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: #2A2522;
+}
+
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Playfair Display", ui-serif, Georgia, serif;

@@ -201,8 +201,15 @@ export default function CampusRadarPage() {
       return;
     }
 
+    // Fetch blocked users to exclude them
+    const { data: blocks } = await supabase
+      .from('blocked_users')
+      .select('blocked_id')
+      .eq('blocker_id', user.id);
+    const blockedIds = new Set((blocks || []).map(b => b.blocked_id));
+
     const me = profiles.find((p) => p.id === user.id);
-    const others = profiles.filter((p) => p.id !== user.id && !p.is_incognito && p.is_present);
+    const others = profiles.filter((p) => p.id !== user.id && !p.is_incognito && p.is_present && !blockedIds.has(p.id));
     setUserProfile(me || null);
 
     if (me?.interests) {

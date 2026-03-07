@@ -6,6 +6,12 @@ import './index.css';
 
 import * as ReactDOMClient from 'react-dom/client';
 
+// Apply saved theme preference
+const savedTheme = localStorage.getItem('gravity-theme');
+if (savedTheme) {
+  document.documentElement.setAttribute('data-theme', savedTheme);
+}
+
 const rootElement = document.getElementById('root');
 if (rootElement) {
   const root = ReactDOMClient.createRoot ? ReactDOMClient.createRoot(rootElement) : (ReactDOMClient as any).default.createRoot(rootElement);

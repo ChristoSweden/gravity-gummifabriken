@@ -11,6 +11,7 @@ interface Message {
   recipient_id: string;
   content: string;
   created_at: string;
+  read_at?: string | null;
 }
 
 function getDateLabel(dateStr: string): string {
@@ -35,8 +36,16 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
+  const [isTyping, setIsTyping] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportDetails, setReportDetails] = useState('');
+  const [reportSent, setReportSent] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const typingTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const typingChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   useEffect(() => {
     if (!user || !userId) return;
@@ -101,16 +110,66 @@ export default function ChatPage() {
             if (prev.some((m) => m.id === (payload.new as Message).id)) return prev;
             return [...prev, payload.new as Message];
           });
+          // Auto-mark as read since chat is open
+          if (!isDemo) {
+            supabase.from('messages').update({ read_at: new Date().toISOString() }).eq('id', payload.new.id).then();
+          }
+        }
+      })
+      // Listen for read receipt updates on our sent messages
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages', filter: `sender_id=eq.${user.id}` }, (payload) => {
+        if (payload.new.read_at) {
+          setMessages((prev) => prev.map((m) => m.id === payload.new.id ? { ...m, read_at: payload.new.read_at } : m));
         }
       })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    // Typing indicator channel (presence-based)
+    const typingChannel = supabase.channel(`typing:${[user.id, userId].sort().join(':')}`, {
+      config: { presence: { key: user.id } },
+    });
+    typingChannel
+      .on('presence', { event: 'sync' }, () => {
+        const state = typingChannel.presenceState();
+        // Check if the OTHER user is typing
+        const otherPresence = state[userId];
+        setIsTyping(!!otherPresence && otherPresence.some((p: any) => p.typing));
+      })
+      .subscribe();
+    typingChannelRef.current = typingChannel;
+
+    // Mark messages as read when opening chat
+    if (!isDemo) {
+      supabase
+        .from('messages')
+        .update({ read_at: new Date().toISOString() })
+        .eq('sender_id', userId)
+        .eq('recipient_id', user.id)
+        .is('read_at', null)
+        .then();
+    }
+
+    return () => {
+      supabase.removeChannel(channel);
+      supabase.removeChannel(typingChannel);
+      typingChannelRef.current = null;
+    };
   }, [user, userId, isDemo]);
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  const broadcastTyping = useCallback((typing: boolean) => {
+    if (isDemo || !typingChannelRef.current) return;
+    typingChannelRef.current.track({ typing });
+  }, [isDemo]);
+
+  const handleTyping = useCallback(() => {
+    broadcastTyping(true);
+    if (typingTimeout.current) clearTimeout(typingTimeout.current);
+    typingTimeout.current = setTimeout(() => broadcastTyping(false), 2000);
+  }, [broadcastTyping]);
 
   const adjustTextarea = useCallback(() => {
     const ta = textareaRef.current;
@@ -132,6 +191,8 @@ export default function ChatPage() {
     }
 
     if (!user) return;
+    broadcastTyping(false);
+    if (typingTimeout.current) clearTimeout(typingTimeout.current);
     const { data, error } = await supabase
       .from('messages')
       .insert([{ sender_id: user.id, recipient_id: userId, content: newMessage.trim() }])
@@ -153,6 +214,29 @@ export default function ChatPage() {
       e.preventDefault();
       handleSendMessage();
     }
+  };
+
+  const handleBlock = async () => {
+    if (!user || !userId || isDemo) return;
+    if (!window.confirm(`Block ${recipientName}? They won't be able to message you or see your profile.`)) return;
+    await supabase.from('blocked_users').upsert({ blocker_id: user.id, blocked_id: userId });
+    // Remove the connection
+    await supabase.from('connections').delete()
+      .or(`and(requester_id.eq.${user.id},recipient_id.eq.${userId}),and(requester_id.eq.${userId},recipient_id.eq.${user.id})`);
+    setShowMenu(false);
+    navigate('/chat');
+  };
+
+  const handleReport = async () => {
+    if (!user || !userId || !reportReason) return;
+    await supabase.from('reports').insert({
+      reporter_id: user.id,
+      reported_id: userId,
+      reason: reportReason,
+      details: reportDetails || null,
+    });
+    setReportSent(true);
+    setTimeout(() => { setShowReportModal(false); setReportSent(false); setReportReason(''); setReportDetails(''); }, 2000);
   };
 
   if (loading) {
@@ -220,9 +304,51 @@ export default function ChatPage() {
 
           <div className="flex-1 min-w-0">
             <h3 className="font-serif text-[var(--color-text-header)] text-base leading-tight truncate">{recipientName}</h3>
-            {recipientProfession && (
+            {recipientProfession && !isTyping && (
               <p className="text-[11px] text-[var(--color-text-secondary)] truncate">{recipientProfession}</p>
             )}
+            {isTyping && (
+              <p className="text-[11px] text-[var(--color-primary)] truncate">typing...</p>
+            )}
+          </div>
+
+          {/* More menu */}
+          <div className="relative">
+            <button
+              onClick={() => setShowMenu(!showMenu)}
+              className="w-9 h-9 flex items-center justify-center text-[var(--color-steel-light)] hover:text-[var(--color-text-primary)] transition-colors rounded-lg"
+              aria-label="More options"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+            </button>
+            <AnimatePresence>
+              {showMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                    className="absolute right-0 top-full mt-1 bg-[var(--color-bg-card)] border border-[var(--color-sand)] rounded-xl shadow-lg z-50 overflow-hidden min-w-[160px]"
+                  >
+                    <button
+                      onClick={() => { setShowMenu(false); setShowReportModal(true); }}
+                      className="w-full px-4 py-3 text-left text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-mist)] transition-colors flex items-center gap-2.5"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+                      Report
+                    </button>
+                    <button
+                      onClick={handleBlock}
+                      className="w-full px-4 py-3 text-left text-sm text-[var(--color-error)] hover:bg-[var(--color-error)]/5 transition-colors flex items-center gap-2.5"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 14.14 14.14"/></svg>
+                      Block User
+                    </button>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </header>
@@ -295,14 +421,20 @@ export default function ChatPage() {
                       <div className={`px-4 py-2.5 text-[15px] leading-relaxed ${
                         isMine
                           ? `bg-[var(--color-primary)] text-white ${myRadius}`
-                          : `bg-white text-[var(--color-text-primary)] border border-[var(--color-sand)] ${theirRadius}`
+                          : `bg-[var(--color-bg-card)] text-[var(--color-text-primary)] border border-[var(--color-sand)] ${theirRadius}`
                       }`}>
                         {msg.content}
                       </div>
-                      {/* Timestamp — shown below last message in a run */}
+                      {/* Timestamp + read receipt — shown below last message in a run */}
                       {!sameSenderAsNext && (
-                        <p className={`text-[10px] mt-1 text-[var(--color-steel-light)] ${isMine ? 'text-right pr-1' : 'text-left pl-1'}`}>
-                          {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        <p className={`text-[10px] mt-1 text-[var(--color-steel-light)] flex items-center gap-1 ${isMine ? 'justify-end pr-1' : 'justify-start pl-1'}`}>
+                          <span>{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          {isMine && (
+                            <svg width="14" height="10" viewBox="0 0 16 10" fill="none" stroke={msg.read_at ? 'var(--color-primary)' : 'var(--color-steel-light)'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M1 5.5l3 3L10 2" />
+                              <path d="M5 5.5l3 3L14 2" />
+                            </svg>
+                          )}
                         </p>
                       )}
                     </div>
@@ -311,6 +443,27 @@ export default function ChatPage() {
               })}
             </div>
           ))}
+          {/* Typing indicator */}
+          <AnimatePresence>
+            {isTyping && (
+              <motion.div
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 4 }}
+                className="flex items-center gap-2 mt-3 ml-9"
+              >
+                <div className="bg-[var(--color-bg-card)] border border-[var(--color-sand)] rounded-2xl px-4 py-2.5 flex items-center gap-1">
+                  {[0, 1, 2].map((i) => (
+                    <span
+                      key={i}
+                      className="w-1.5 h-1.5 bg-[var(--color-steel-light)] rounded-full"
+                      style={{ animation: `gentlePulse 1.2s ease-in-out ${i * 0.2}s infinite` }}
+                    />
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
           <div ref={scrollRef} className="h-2" />
         </div>
       </div>
@@ -329,6 +482,67 @@ export default function ChatPage() {
         )}
       </AnimatePresence>
 
+      {/* ── Report modal ── */}
+      <AnimatePresence>
+        {showReportModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center"
+            onClick={() => setShowReportModal(false)}
+          >
+            <motion.div
+              initial={{ y: 40, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 40, opacity: 0 }}
+              className="bg-[var(--color-bg-warm)] w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-xl border border-[var(--color-sand)]/50"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {reportSent ? (
+                <div className="text-center py-6">
+                  <div className="w-14 h-14 rounded-full bg-[var(--color-success)]/12 flex items-center justify-center mx-auto mb-4">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                  </div>
+                  <h3 className="font-serif text-lg text-[var(--color-text-header)]">Report Submitted</h3>
+                  <p className="text-sm text-[var(--color-text-secondary)] mt-1">We'll review this promptly.</p>
+                </div>
+              ) : (
+                <>
+                  <h3 className="font-serif text-xl text-[var(--color-text-header)] mb-1">Report {recipientName}</h3>
+                  <p className="text-sm text-[var(--color-text-secondary)] mb-5">What's the issue?</p>
+                  <div className="space-y-2 mb-4">
+                    {['Harassment', 'Spam', 'Inappropriate content', 'Fake profile', 'Other'].map((reason) => (
+                      <button
+                        key={reason}
+                        onClick={() => setReportReason(reason)}
+                        className={`w-full text-left px-4 py-3 rounded-xl text-sm transition-colors border ${
+                          reportReason === reason
+                            ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/5 text-[var(--color-primary)] font-medium'
+                            : 'border-[var(--color-sand)] text-[var(--color-text-primary)] hover:bg-[var(--color-mist)]'
+                        }`}
+                      >
+                        {reason}
+                      </button>
+                    ))}
+                  </div>
+                  <textarea
+                    className="input-field min-h-[70px] resize-none mb-4"
+                    placeholder="Additional details (optional)"
+                    value={reportDetails}
+                    onChange={(e) => setReportDetails(e.target.value)}
+                  />
+                  <div className="flex gap-3">
+                    <button onClick={() => setShowReportModal(false)} className="btn-secondary flex-1 py-3 text-xs">Cancel</button>
+                    <button onClick={handleReport} disabled={!reportReason} className="btn-primary flex-1 py-3 text-xs disabled:opacity-40">Submit Report</button>
+                  </div>
+                </>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ── Input bar ── */}
       <div className="flex-shrink-0 bg-[var(--color-bg-warm)] border-t border-[var(--color-sand)]/60 px-4 py-3 safe-bottom">
         <div className="max-w-lg mx-auto flex items-end gap-2">
@@ -337,7 +551,7 @@ export default function ChatPage() {
               ref={textareaRef}
               rows={1}
               value={newMessage}
-              onChange={(e) => { setNewMessage(e.target.value); adjustTextarea(); }}
+              onChange={(e) => { setNewMessage(e.target.value); adjustTextarea(); handleTyping(); }}
               onKeyDown={handleKeyDown}
               placeholder="Message..."
               className="w-full text-[15px] text-[var(--color-text-primary)] bg-transparent outline-none resize-none placeholder:text-[var(--color-steel-light)]/60 leading-relaxed"
