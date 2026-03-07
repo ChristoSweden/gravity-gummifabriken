@@ -93,13 +93,22 @@ export default function ConnectionsPage() {
     fetchConnections();
     if (!user) return;
 
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const debouncedFetch = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => fetchConnections(), 500);
+    };
+
     const channel = supabase
       .channel('connections-page')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'connections', filter: `recipient_id=eq.${user.id}` }, () => fetchConnections())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'connections', filter: `requester_id=eq.${user.id}` }, () => fetchConnections())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'connections', filter: `recipient_id=eq.${user.id}` }, debouncedFetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'connections', filter: `requester_id=eq.${user.id}` }, debouncedFetch)
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      supabase.removeChannel(channel);
+    };
   }, [user, fetchConnections]);
 
   const handleAccept = async (connectionId: string) => {
@@ -205,12 +214,10 @@ export default function ConnectionsPage() {
 
             {accepted.length === 0 && pendingRequests.length === 0 && (
               <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="card p-12 text-center">
-                <div className="w-16 h-16 bg-[var(--color-sand-light)] rounded-full flex items-center justify-center mx-auto mb-5">
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--color-steel-light)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
-                </div>
-                <h3 className="font-serif text-lg text-[var(--color-text-header)] mb-2">No connections yet</h3>
-                <p className="text-sm text-[var(--color-text-secondary)] mb-6 max-w-[240px] mx-auto">
-                  Head to the radar to find professionals with shared interests.
+                <div className="text-5xl mb-4">🤝</div>
+                <h3 className="font-serif text-lg text-[var(--color-text-header)] mb-2">Your network starts here</h3>
+                <p className="text-sm text-[var(--color-text-secondary)] mb-6 max-w-[260px] mx-auto">
+                  Open the radar to discover professionals nearby who share your interests. One connection is all it takes.
                 </p>
                 <Link to="/radar" className="btn-primary inline-block px-8 py-3 text-xs">Open Radar</Link>
               </motion.div>

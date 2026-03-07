@@ -1,9 +1,28 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabaseService';
 import { getDemoProfile, setDemoProfile, setDemoInterests } from '../services/mockData';
 import { APP_CONFIG } from '../config/appConfig';
+
+function resizeImage(file: File, maxDim: number): Promise<Blob> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let w = img.width, h = img.height;
+      if (w > maxDim || h > maxDim) {
+        if (w > h) { h = Math.round((h * maxDim) / w); w = maxDim; }
+        else { w = Math.round((w * maxDim) / h); h = maxDim; }
+      }
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext('2d')!.drawImage(img, 0, 0, w, h);
+      canvas.toBlob((blob) => resolve(blob!), 'image/jpeg', 0.85);
+    };
+    img.src = URL.createObjectURL(file);
+  });
+}
 
 export default function ProfilePage() {
   const { user, isDemo, logout } = useAuth();
@@ -11,8 +30,11 @@ export default function ProfilePage() {
   const [fullName, setFullName] = useState('');
   const [profession, setProfession] = useState('');
   const [company, setCompany] = useState('');
-  const [interests, setInterests] = useState('');
+  const [interestTags, setInterestTags] = useState<string[]>([]);
+  const [interestInput, setInterestInput] = useState('');
   const [intent, setIntent] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [gpsEnabled, setGpsEnabled] = useState(true);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [isIncognito, setIsIncognito] = useState(false);
@@ -21,6 +43,7 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -33,7 +56,7 @@ export default function ProfilePage() {
         setFullName(profile.full_name || '');
         setProfession(profile.profession || '');
         setCompany(profile.company || '');
-        setInterests(profile.interests ? profile.interests.join(', ') : '');
+        setInterestTags(profile.interests || []);
         setIntent(profile.intent || '');
         setLoading(false);
         return;
@@ -41,7 +64,7 @@ export default function ProfilePage() {
 
       const { data, error: fetchErr } = await supabase
         .from('profiles')
-        .select('full_name, profession, company, interests, intent, gps_enabled, notifications_enabled, is_incognito, profile_blur')
+        .select('full_name, profession, company, interests, intent, gps_enabled, notifications_enabled, is_incognito, profile_blur, avatar_url')
         .eq('id', user.id)
         .single();
 
@@ -51,8 +74,9 @@ export default function ProfilePage() {
         setFullName(data.full_name || '');
         setProfession(data.profession || '');
         setCompany(data.company || '');
-        setInterests(data.interests ? data.interests.join(', ') : '');
+        setInterestTags(data.interests || []);
         setIntent(data.intent || '');
+        setAvatarUrl(data.avatar_url || null);
         setGpsEnabled(data.gps_enabled ?? true);
         setNotificationsEnabled(data.notifications_enabled ?? true);
         setIsIncognito(data.is_incognito || false);
@@ -74,7 +98,7 @@ export default function ProfilePage() {
 
     if (isDemo) {
       setDemoProfile(fullName, profession, company);
-      setDemoInterests(interests.split(',').map((s) => s.trim()).filter(Boolean));
+      setDemoInterests(interestTags);
       setMessage('Profile updated');
       setSaving(false);
       setTimeout(() => setMessage(null), 3000);
@@ -84,7 +108,7 @@ export default function ProfilePage() {
     const { error: updateError } = await supabase.from('profiles').upsert({
       id: user.id,
       full_name: fullName, profession, company,
-      interests: interests.split(',').map((s) => s.trim()).filter(Boolean),
+      interests: interestTags,
       intent,
       gps_enabled: gpsEnabled,
       notifications_enabled: notificationsEnabled,
@@ -96,6 +120,59 @@ export default function ProfilePage() {
     if (updateError) setError(updateError.message);
     else { setMessage('Profile saved'); setTimeout(() => setMessage(null), 3000); }
     setSaving(false);
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user || isDemo) return;
+
+    setUploadingAvatar(true);
+    setError(null);
+
+    // Client-side resize to max 512px for fast uploads
+    const resized = await resizeImage(file, 512);
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+    const path = `${user.id}/avatar.${ext}`;
+
+    const { error: uploadErr } = await supabase.storage
+      .from('avatars')
+      .upload(path, resized, { upsert: true, contentType: resized.type });
+
+    if (uploadErr) {
+      setError('Photo upload failed. Try a smaller image.');
+      setUploadingAvatar(false);
+      return;
+    }
+
+    const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
+    const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+
+    await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', user.id);
+    setAvatarUrl(publicUrl);
+    setUploadingAvatar(false);
+    setMessage('Photo updated');
+    setTimeout(() => setMessage(null), 3000);
+  };
+
+  const addInterestTag = (value: string) => {
+    const tag = value.trim();
+    if (tag && !interestTags.includes(tag)) {
+      setInterestTags([...interestTags, tag]);
+    }
+    setInterestInput('');
+  };
+
+  const removeInterestTag = (tag: string) => {
+    setInterestTags(interestTags.filter((t) => t !== tag));
+  };
+
+  const handleInterestKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if ((e.key === 'Enter' || e.key === ',') && interestInput.trim()) {
+      e.preventDefault();
+      addInterestTag(interestInput);
+    } else if (e.key === 'Backspace' && !interestInput && interestTags.length > 0) {
+      setInterestTags(interestTags.slice(0, -1));
+    }
   };
 
   const handleExportData = async () => {
@@ -128,7 +205,13 @@ export default function ProfilePage() {
     if (!user) return;
     if (!window.confirm('This will permanently delete your account and all data. This cannot be undone.')) return;
 
-    await supabase.from('profiles').delete().eq('id', user.id);
+    // delete_user() is SECURITY DEFINER — deletes auth.users row which
+    // CASCADEs to profiles, connections, and messages (full GDPR erasure).
+    const { error: deleteError } = await supabase.rpc('delete_user');
+    if (deleteError) {
+      setError('Account deletion failed. Please contact support.');
+      return;
+    }
     await supabase.auth.signOut();
     navigate('/');
   };
@@ -196,6 +279,38 @@ export default function ProfilePage() {
         )}
 
         <form onSubmit={handleSave} className="space-y-8">
+          {/* Avatar */}
+          <section className="flex flex-col items-center mb-2">
+            <div className="relative group">
+              <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-[var(--color-sand)] shadow-md">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-[var(--color-primary)] flex items-center justify-center text-white font-serif text-3xl">
+                    {fullName.charAt(0) || '?'}
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingAvatar || isDemo}
+                className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" />
+                </svg>
+              </button>
+              {uploadingAvatar && (
+                <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center">
+                  <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+            </div>
+            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
+            <p className="text-[11px] text-[var(--color-text-secondary)] mt-2">Tap to change photo</p>
+          </section>
+
           {/* Identity */}
           <section>
             <h3 className="section-label mb-4">Identity</h3>
@@ -214,7 +329,27 @@ export default function ProfilePage() {
               </div>
               <div>
                 <label className="section-label block mb-1.5">Interests</label>
-                <textarea className="input-field min-h-[72px] resize-none" value={interests} onChange={(e) => setInterests(e.target.value)} placeholder="Comma-separated: AI, UX Design, SaaS..." />
+                <div className="input-field !p-2 flex flex-wrap gap-1.5 min-h-[48px] items-center cursor-text" onClick={() => document.getElementById('interest-input')?.focus()}>
+                  {interestTags.map((tag) => (
+                    <span key={tag} className="inline-flex items-center gap-1 text-[12px] font-medium text-[var(--color-primary-dark)] bg-[var(--color-primary)]/8 pl-2.5 pr-1.5 py-1 rounded-full border border-[var(--color-primary)]/10">
+                      {tag}
+                      <button type="button" onClick={(e) => { e.stopPropagation(); removeInterestTag(tag); }} className="w-4 h-4 rounded-full hover:bg-[var(--color-primary)]/15 flex items-center justify-center transition-colors">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                      </button>
+                    </span>
+                  ))}
+                  <input
+                    id="interest-input"
+                    type="text"
+                    className="flex-1 min-w-[80px] outline-none bg-transparent text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-steel-light)]/50"
+                    value={interestInput}
+                    onChange={(e) => setInterestInput(e.target.value)}
+                    onKeyDown={handleInterestKeyDown}
+                    onBlur={() => { if (interestInput.trim()) addInterestTag(interestInput); }}
+                    placeholder={interestTags.length === 0 ? 'Type and press Enter...' : ''}
+                  />
+                </div>
+                <p className="text-[11px] text-[var(--color-text-secondary)] mt-1">Press Enter or comma to add</p>
               </div>
               <div>
                 <label className="section-label block mb-1.5">Intent</label>

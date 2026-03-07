@@ -17,6 +17,8 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   isDemo: boolean;
+  needsOnboarding: boolean;
+  setNeedsOnboarding: (v: boolean) => void;
   enterDemoMode: () => void;
   logout: () => void;
 }
@@ -28,9 +30,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isDemo, setIsDemo] = useState(false);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
   useEffect(() => {
-    // Check if we were in demo mode (session storage persists across page reloads within tab)
     if (isDemoMode()) {
       setUser(DEMO_USER);
       setIsDemo(true);
@@ -51,6 +53,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         clearTimeout(timeout);
         setSession(session);
         setUser(session?.user || null);
+
+        // Check if this authenticated user has a profile yet
+        if (session?.user) {
+          const { data } = await supabase
+            .from('profiles')
+            .select('interests')
+            .eq('id', session.user.id)
+            .maybeSingle();
+          if (!data || !data.interests || data.interests.length < 3) {
+            setNeedsOnboarding(true);
+          }
+        }
       } catch (error) {
         console.error('Failed to get session:', error);
       } finally {
@@ -61,10 +75,39 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     getSession();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (event, session) => {
         setSession(session);
         setUser(session?.user || null);
         setLoading(false);
+
+        if (event === 'SIGNED_IN' && session?.user) {
+          // Apply any pending profile data from pre-signup onboarding
+          const raw = sessionStorage.getItem('gravity_pending_profile');
+          if (raw) {
+            try {
+              const pending = JSON.parse(raw);
+              await supabase.from('profiles').upsert({
+                id: session.user.id,
+                ...pending,
+                consent_given_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              });
+              setNeedsOnboarding(false);
+            } catch {
+              // non-fatal
+            } finally {
+              sessionStorage.removeItem('gravity_pending_profile');
+            }
+          } else {
+            // Check if this user still needs onboarding
+            const { data } = await supabase
+              .from('profiles')
+              .select('interests')
+              .eq('id', session.user.id)
+              .maybeSingle();
+            setNeedsOnboarding(!data || !data.interests || data.interests.length < 3);
+          }
+        }
       },
     );
 
@@ -90,10 +133,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } else {
       await supabase.auth.signOut();
     }
+    setNeedsOnboarding(false);
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, loading, isDemo, enterDemoMode: enterDemo, logout }}>
+    <AuthContext.Provider value={{ session, user, loading, isDemo, needsOnboarding, setNeedsOnboarding, enterDemoMode: enterDemo, logout }}>
       {children}
     </AuthContext.Provider>
   );

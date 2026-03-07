@@ -1,13 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import logoUrl from '../assets/logo.png';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabaseService';
-import { MOCK_USERS, getDemoProfile, isConnectedInDemo, addDemoConnection, addDemoMessage } from '../services/mockData';
+import { MOCK_USERS, getDemoProfile, getDemoConnections, isConnectedInDemo, addDemoConnection, addDemoMessage, acceptDemoConnection, declineDemoConnection } from '../services/mockData';
 import { getInterestOverlap } from '../utils/matching';
 import { track } from '@vercel/analytics';
 import { APP_CONFIG } from '../config/appConfig';
 import { motion, AnimatePresence } from 'motion/react';
+
+/** Haversine distance between two GPS coordinates, in metres. */
+function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371000;
+  const toRad = (d: number) => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+type PresenceStatus = 'checking' | 'present' | 'absent' | 'manual' | 'gps_denied' | 'gps_unavailable';
 
 const MOCK_DISTANCES: Record<string, number> = {
   'user-1': 45,
@@ -56,6 +68,56 @@ export default function CampusRadarPage() {
   const [invitationMessage, setInvitationMessage] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingReviewRequest, setPendingReviewRequest] = useState<(Profile & { connectionId: string; message?: string }) | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [presenceStatus, setPresenceStatus] = useState<PresenceStatus>('checking');
+  const presenceChecked = useRef(false);
+  const [activityFeed, setActivityFeed] = useState<{ id: string; text: string; time: string; type: 'join' | 'connect' }[]>([]);
+
+  /** Plan A: GPS geofence check. Updates is_present in DB, returns true if at venue. */
+  const checkGpsPresence = React.useCallback(async (): Promise<boolean> => {
+    if (!user || isDemo) return true; // demo users are always "present"
+    if (!navigator.geolocation) {
+      setPresenceStatus('gps_unavailable');
+      return false;
+    }
+
+    return new Promise((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          const dist = haversineDistance(
+            pos.coords.latitude, pos.coords.longitude,
+            APP_CONFIG.VENUE_LAT, APP_CONFIG.VENUE_LNG
+          );
+          const atVenue = dist <= APP_CONFIG.PRESENCE_RADIUS_M;
+          setPresenceStatus(atVenue ? 'present' : 'absent');
+          // Update own presence regardless — clears stale check-ins for those who left
+          await supabase.from('profiles').update({
+            is_present: atVenue,
+            last_seen_at: atVenue ? new Date().toISOString() : null,
+          }).eq('id', user.id);
+          resolve(atVenue);
+        },
+        (err) => {
+          // PERMISSION_DENIED = 1
+          setPresenceStatus(err.code === 1 ? 'gps_denied' : 'gps_unavailable');
+          resolve(false);
+        },
+        { timeout: 8000, maximumAge: 60000 }
+      );
+    });
+  }, [user, isDemo]);
+
+  /** Plan B: manual check-in — user taps "I'm here" button. */
+  const handleManualCheckIn = async () => {
+    if (!user) return;
+    setPresenceStatus('manual');
+    await supabase.from('profiles').update({
+      is_present: true,
+      last_seen_at: new Date().toISOString(),
+    }).eq('id', user.id);
+    fetchData();
+  };
 
   const fetchData = React.useCallback(async () => {
     if (!user) return;
@@ -80,13 +142,32 @@ export default function CampusRadarPage() {
       const statuses: ConnectionStatus = {};
       others.forEach((p) => { statuses[p.id] = isConnectedInDemo(p.id); });
       setConnectionStatuses(statuses);
+
+      // Check for pending received requests in demo mode
+      const pendingReceivedEntry = Object.entries(statuses).find(([, s]) => s === 'pending_received');
+      if (pendingReceivedEntry) {
+        const [pendingUserId] = pendingReceivedEntry;
+        const requesterProfile = MOCK_USERS.find(u => u.id === pendingUserId);
+        const demoConns = getDemoConnections();
+        const demoConn = demoConns.find(c => c.requester_id === pendingUserId && c.recipient_id === me.id);
+        if (requesterProfile && demoConn) {
+          setPendingReviewRequest({ ...requesterProfile, connectionId: demoConn.id });
+        }
+      } else {
+        setPendingReviewRequest(null);
+      }
+
       setLoading(false);
       return;
     }
 
+    // Only fetch users who are currently present at the venue.
+    // Staleness cutoff: last_seen_at within the last 4 hours.
+    const stalenessCutoff = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
     const { data: profiles, error: pError } = await supabase
       .from('profiles')
-      .select('id, full_name, interests, profession, company, is_incognito');
+      .select('id, full_name, interests, profession, company, is_incognito, is_present, last_seen_at')
+      .or(`id.eq.${user.id},and(is_present.eq.true,last_seen_at.gte.${stalenessCutoff})`);
 
     if (pError || !profiles) {
       setError('Unable to load nearby profiles. Please try again.');
@@ -95,7 +176,7 @@ export default function CampusRadarPage() {
     }
 
     const me = profiles.find((p) => p.id === user.id);
-    const others = profiles.filter((p) => p.id !== user.id && !p.is_incognito);
+    const others = profiles.filter((p) => p.id !== user.id && !p.is_incognito && p.is_present);
     setUserProfile(me || null);
 
     if (me?.interests) {
@@ -122,18 +203,101 @@ export default function CampusRadarPage() {
       else if (c.status === 'pending') statuses[otherId] = c.requester_id === user.id ? 'pending_sent' : 'pending_received';
     });
     setConnectionStatuses(statuses);
+
+    // If there are pending received requests, find the first one to show prominently
+    const firstPending = (connections || []).find(c => c.status === 'pending' && c.recipient_id === (isDemo ? getDemoProfile().id : user.id));
+    if (firstPending) {
+      const otherId = firstPending.requester_id === (isDemo ? getDemoProfile().id : user.id) ? firstPending.recipient_id : firstPending.requester_id;
+      const { data: profile } = await supabase.from('profiles').select('id, full_name, interests, profession, company, avatar_url').eq('id', otherId).single();
+
+      // Also check for the most recent message from them (icebreaker)
+      const { data: lastMsg } = await supabase
+        .from('messages')
+        .select('content')
+        .eq('sender_id', otherId)
+        .eq('recipient_id', (isDemo ? getDemoProfile().id : user.id))
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (profile) {
+        setPendingReviewRequest({
+          ...profile,
+          connectionId: firstPending.id,
+          message: lastMsg?.content
+        });
+      }
+    } else {
+      setPendingReviewRequest(null);
+    }
+
+    // Activity feed: recent check-ins and connections (last 2 hours)
+    if (!isDemo) {
+      const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+      const [{ data: recentPresence }, { data: recentConns }] = await Promise.all([
+        supabase.from('profiles').select('full_name, last_seen_at').eq('is_present', true).gte('last_seen_at', twoHoursAgo).order('last_seen_at', { ascending: false }).limit(5),
+        supabase.from('connections').select('created_at').eq('status', 'accepted').gte('created_at', twoHoursAgo).order('created_at', { ascending: false }).limit(5),
+      ]);
+
+      const feed: typeof activityFeed = [];
+      (recentPresence || []).forEach((p) => {
+        const mins = Math.floor((Date.now() - new Date(p.last_seen_at).getTime()) / 60000);
+        feed.push({
+          id: `join-${p.full_name}-${p.last_seen_at}`,
+          text: `${p.full_name?.split(' ')[0] || 'Someone'} checked in`,
+          time: mins < 1 ? 'just now' : mins < 60 ? `${mins}m ago` : `${Math.floor(mins / 60)}h ago`,
+          type: 'join',
+        });
+      });
+      (recentConns || []).forEach((c) => {
+        const mins = Math.floor((Date.now() - new Date(c.created_at).getTime()) / 60000);
+        feed.push({
+          id: `conn-${c.created_at}`,
+          text: 'New connection made',
+          time: mins < 1 ? 'just now' : mins < 60 ? `${mins}m ago` : `${Math.floor(mins / 60)}h ago`,
+          type: 'connect',
+        });
+      });
+      feed.sort((a, b) => {
+        const aMs = a.time === 'just now' ? 0 : parseInt(a.time);
+        const bMs = b.time === 'just now' ? 0 : parseInt(b.time);
+        return aMs - bMs;
+      });
+      setActivityFeed(feed.slice(0, 5));
+    }
+
     setLoading(false);
   }, [user, isDemo]);
 
   useEffect(() => {
-    fetchData();
+    // Run GPS presence check once on mount, then fetch data.
+    // presenceChecked ref prevents re-running on every re-render.
+    if (!presenceChecked.current) {
+      presenceChecked.current = true;
+      checkGpsPresence().then(() => fetchData());
+    } else {
+      fetchData();
+    }
+
+    // Debounce realtime refetches: with 100 users, rapid profile/connection
+    // changes would otherwise trigger a flood of simultaneous DB queries.
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const debouncedFetch = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => fetchData(), 800);
+    };
+
     const channel = supabase
       .channel('radar-profiles')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => fetchData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'connections' }, () => fetchData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, debouncedFetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'connections' }, debouncedFetch)
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [fetchData]);
+
+    return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      supabase.removeChannel(channel);
+    };
+  }, [fetchData, checkGpsPresence]);
 
   const handleSendRequest = async () => {
     if (!selectedMatch) return;
@@ -158,7 +322,6 @@ export default function CampusRadarPage() {
       setInvitationMessage('');
       setShowSuccess(true);
       track('connection_request_sent', { mode: 'demo', target_id: recipientId });
-      setTimeout(() => setShowSuccess(false), 3000);
       return;
     }
 
@@ -190,10 +353,39 @@ export default function CampusRadarPage() {
     setConnectionStatuses((prev) => ({ ...prev, [recipientId]: 'pending_sent' }));
     setShowSuccess(true);
     track('connection_request_sent', { mode: 'live', target_id: recipientId });
-    setTimeout(() => setShowSuccess(false), 3000);
     setSendingTo(null);
     setSelectedMatch(null);
     setInvitationMessage('');
+  };
+
+  const handleAcceptConnection = async (connectionId: string) => {
+    setUpdatingId(connectionId);
+    if (isDemo) {
+      acceptDemoConnection(connectionId);
+      setPendingReviewRequest(null);
+      setUpdatingId(null);
+      await fetchData();
+      return;
+    }
+    await supabase.from('connections').update({ status: 'accepted' }).eq('id', connectionId);
+    setPendingReviewRequest(null);
+    setUpdatingId(null);
+    await fetchData();
+  };
+
+  const handleDeclineConnection = async (connectionId: string) => {
+    setUpdatingId(connectionId);
+    if (isDemo) {
+      declineDemoConnection(connectionId);
+      setPendingReviewRequest(null);
+      setUpdatingId(null);
+      await fetchData();
+      return;
+    }
+    await supabase.from('connections').delete().eq('id', connectionId);
+    setPendingReviewRequest(null);
+    setUpdatingId(null);
+    await fetchData();
   };
 
   if (loading) {
@@ -210,7 +402,7 @@ export default function CampusRadarPage() {
   const pendingReceivedCount = Object.values(connectionStatuses).filter(s => s === 'pending_received').length;
 
   const pipLayout = [
-    { angle: 30,  r: 42 },
+    { angle: 30, r: 42 },
     { angle: 100, r: 68 },
     { angle: 170, r: 90 },
     { angle: 220, r: 56 },
@@ -221,6 +413,53 @@ export default function CampusRadarPage() {
   return (
     <div className="min-h-screen bg-[var(--color-bg-warm)] pb-24">
       <div className="max-w-lg mx-auto px-6 pt-8">
+
+        {/* ── Plan B: Manual check-in banner (GPS denied / outside venue) ── */}
+        <AnimatePresence>
+          {(presenceStatus === 'gps_denied' || presenceStatus === 'gps_unavailable') && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              className="mb-4"
+            >
+              <div className="bg-[var(--color-accent)]/8 border border-[var(--color-accent)]/30 rounded-2xl px-4 py-3.5 flex items-center gap-3">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0"><circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" /></svg>
+                <p className="text-[13px] text-[var(--color-text-secondary)] flex-1">
+                  {presenceStatus === 'gps_denied' ? 'Location access denied.' : 'GPS unavailable.'}{' '}
+                  Confirm you're at {APP_CONFIG.LOCATION_NAME}.
+                </p>
+                <button
+                  onClick={handleManualCheckIn}
+                  className="flex-shrink-0 text-[12px] font-bold text-white bg-[var(--color-primary)] px-3 py-1.5 rounded-full hover:bg-[var(--color-primary-dark)] transition-colors"
+                >
+                  I'm here
+                </button>
+              </div>
+            </motion.div>
+          )}
+          {presenceStatus === 'absent' && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              className="mb-4"
+            >
+              <div className="bg-[var(--color-sand-light)] border border-[var(--color-sand)] rounded-2xl px-4 py-3.5 flex items-center gap-3">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-steel-light)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" /></svg>
+                <p className="text-[13px] text-[var(--color-text-secondary)] flex-1">
+                  You're not at {APP_CONFIG.LOCATION_NAME} right now. Radar shows who's present.
+                </p>
+                <button
+                  onClick={handleManualCheckIn}
+                  className="flex-shrink-0 text-[12px] font-bold text-[var(--color-primary)] px-3 py-1.5 rounded-full border border-[var(--color-primary)]/30 hover:bg-[var(--color-primary)]/5 transition-colors"
+                >
+                  Check in
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* ── Pending connection request banner ── */}
         <AnimatePresence>
@@ -245,11 +484,31 @@ export default function CampusRadarPage() {
         </AnimatePresence>
 
         {/* Header */}
-        <header className="text-center mb-8">
-          <h2 className="font-serif text-3xl text-[var(--color-text-header)] mb-1">Radar</h2>
-          <p className="text-sm text-[var(--color-text-secondary)]">
-            {APP_CONFIG.RADAR_RADIUS} radius at {APP_CONFIG.LOCATION_NAME}
-          </p>
+        <header className="flex items-center justify-between mb-8">
+          <div>
+            <h2 className="font-serif text-3xl text-[var(--color-text-header)] mb-1">Radar</h2>
+            <p className="text-sm text-[var(--color-text-secondary)]">
+              {APP_CONFIG.RADAR_RADIUS} radius · {APP_CONFIG.LOCATION_NAME}
+            </p>
+          </div>
+          {presenceStatus === 'present' || presenceStatus === 'manual' || isDemo ? (
+            <div className="flex items-center gap-1.5 bg-[var(--color-success)]/10 border border-[var(--color-success)]/20 px-3 py-1.5 rounded-full">
+              <span className="w-2 h-2 bg-[var(--color-success)] rounded-full animate-gentle-pulse" />
+              <span className="text-[11px] font-semibold uppercase tracking-widest text-[var(--color-success)]">
+                {presenceStatus === 'manual' ? 'Checked in' : 'Active'}
+              </span>
+            </div>
+          ) : presenceStatus === 'checking' ? (
+            <div className="flex items-center gap-1.5 bg-[var(--color-sand)]/60 border border-[var(--color-sand)] px-3 py-1.5 rounded-full">
+              <span className="w-2 h-2 bg-[var(--color-steel-light)] rounded-full animate-gentle-pulse" />
+              <span className="text-[11px] font-semibold uppercase tracking-widest text-[var(--color-steel-light)]">Locating...</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 bg-[var(--color-sand-light)] border border-[var(--color-sand)] px-3 py-1.5 rounded-full">
+              <span className="w-2 h-2 bg-[var(--color-steel-light)] rounded-full" />
+              <span className="text-[11px] font-semibold uppercase tracking-widest text-[var(--color-steel-light)]">Offline</span>
+            </div>
+          )}
         </header>
 
         {/* Radar Visual */}
@@ -286,8 +545,8 @@ export default function CampusRadarPage() {
             const borderColor = status === 'accepted'
               ? 'border-[var(--color-success)]'
               : status === 'pending_sent' || status === 'pending_received'
-              ? 'border-[var(--color-accent)]'
-              : 'border-white/60';
+                ? 'border-[var(--color-accent)]'
+                : 'border-white/60';
 
             return (
               <button
@@ -329,6 +588,26 @@ export default function CampusRadarPage() {
           })}
         </div>
 
+        {/* Activity Feed */}
+        {activityFeed.length > 0 && (
+          <div className="mb-8">
+            <p className="section-label mb-3">Live Activity</p>
+            <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
+              {activityFeed.map((item) => (
+                <div key={item.id} className="flex-shrink-0 bg-white/70 backdrop-blur-sm border border-[var(--color-sand)]/60 rounded-full px-3 py-1.5 flex items-center gap-2">
+                  {item.type === 'join' ? (
+                    <span className="w-1.5 h-1.5 bg-[var(--color-success)] rounded-full" />
+                  ) : (
+                    <span className="w-1.5 h-1.5 bg-[var(--color-accent)] rounded-full" />
+                  )}
+                  <span className="text-[11px] text-[var(--color-text-primary)] font-medium whitespace-nowrap">{item.text}</span>
+                  <span className="text-[10px] text-[var(--color-steel-light)] whitespace-nowrap">{item.time}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Section header */}
         <div className="mb-4">
           <h3 className="font-serif text-xl text-[var(--color-text-header)] mb-1">Nearby Professionals</h3>
@@ -337,13 +616,21 @@ export default function CampusRadarPage() {
 
         {/* Match list */}
         {matches.length === 0 ? (
-          <div className="card p-10 text-center">
-            <div className="w-14 h-14 bg-[var(--color-sand-light)] rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-steel-light)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="card p-12 text-center">
+            <div className="text-5xl mb-4">
+              {presenceStatus === 'present' || presenceStatus === 'manual' || isDemo ? '🔭' : '🌍'}
             </div>
-            <p className="text-sm text-[var(--color-text-secondary)] mb-2">No matches yet</p>
-            <p className="text-[13px] text-[var(--color-text-secondary)]/70">People with shared interests will appear here when nearby.</p>
-          </div>
+            <h3 className="font-serif text-lg text-[var(--color-text-header)] mb-2">
+              {presenceStatus === 'present' || presenceStatus === 'manual' || isDemo
+                ? 'Scanning the airwaves...'
+                : 'The radar awaits'}
+            </h3>
+            <p className="text-sm text-[var(--color-text-secondary)] max-w-[260px] mx-auto">
+              {presenceStatus === 'present' || presenceStatus === 'manual' || isDemo
+                ? "No one with shared interests is nearby right now. They'll appear the moment they arrive."
+                : `Head to ${APP_CONFIG.LOCATION_NAME} and your radar will light up with like-minded professionals.`}
+            </p>
+          </motion.div>
         ) : (
           <div className="space-y-3 pb-20">
             {matches.map((match, i) => {
@@ -430,18 +717,46 @@ export default function CampusRadarPage() {
         )}
       </div>
 
-      {/* Toasts */}
+      {/* Error toast */}
       <AnimatePresence>
-        {showSuccess && (
-          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
-            className="fixed top-4 left-1/2 -translate-x-1/2 glass-effect border border-[var(--color-success)]/20 px-6 py-3 rounded-full shadow-lg z-[60]">
-            <p className="text-sm font-semibold text-[var(--color-success)]">Connection request sent</p>
-          </motion.div>
-        )}
         {error && (
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
-            className="fixed top-4 left-1/2 -translate-x-1/2 bg-[var(--color-error)]/5 border border-[var(--color-error)]/15 px-6 py-3 rounded-full shadow-lg z-[60]">
+            className="fixed top-4 left-1/2 -translate-x-1/2 bg-[var(--color-error)]/5 border border-[var(--color-error)]/15 px-6 py-3 rounded-full shadow-lg z-[110]">
             <p className="text-sm font-semibold text-[var(--color-error)]">{error}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Success modal */}
+      <AnimatePresence>
+        {showSuccess && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[110] flex items-end sm:items-center justify-center"
+          >
+            <motion.div
+              initial={{ y: 40, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 40, opacity: 0 }}
+              transition={{ type: 'spring', damping: 25 }}
+              className="bg-[var(--color-bg-warm)] w-full max-w-md rounded-t-3xl sm:rounded-3xl p-8 shadow-xl border border-[var(--color-sand)]/50 text-center"
+            >
+              <div className="w-16 h-16 rounded-full bg-[var(--color-success)]/12 flex items-center justify-center mx-auto mb-5">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
+              </div>
+              <h3 className="font-serif text-xl text-[var(--color-text-header)] mb-2">Connection Request Sent</h3>
+              <p className="text-sm text-[var(--color-text-secondary)] mb-8">We'll notify you once they accept.</p>
+              <button
+                onClick={() => setShowSuccess(false)}
+                className="w-full py-3.5 rounded-2xl bg-[var(--color-sand-light)] text-[var(--color-text-secondary)] text-sm font-semibold hover:bg-[var(--color-sand)] transition-colors"
+              >
+                Close
+              </button>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -522,6 +837,88 @@ export default function CampusRadarPage() {
                   Cancel
                 </button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Premium Request Modal (Prominent Popup) */}
+      <AnimatePresence>
+        {pendingReviewRequest && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-xl z-[200] flex items-center justify-center p-6"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="bg-[var(--color-bg-warm)] w-full max-w-sm rounded-[2.5rem] shadow-2xl border border-white/20 overflow-hidden relative"
+            >
+              {/* Profile Header */}
+              <div className="bg-[var(--color-primary)]/10 pt-12 pb-8 px-8 text-center border-b border-[var(--color-sand)]/50">
+                <div className="relative inline-block mb-6">
+                  <div className="absolute inset-0 bg-[var(--color-primary)] rounded-full blur-2xl opacity-20 animate-pulse" />
+                  <BlurredAvatar size="lg" />
+                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-[var(--color-accent)] rounded-full border-2 border-white flex items-center justify-center">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="white"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" /></svg>
+                  </div>
+                </div>
+
+                <h3 className="font-serif text-2xl text-[var(--color-text-header)] mb-1">Premium Request</h3>
+                <p className="text-[11px] font-bold text-[var(--color-primary)] uppercase tracking-[0.2em]">New Connection Detected</p>
+              </div>
+
+              {/* Request Details */}
+              <div className="p-8 space-y-6">
+                <div className="text-center">
+                  <p className="font-serif text-lg text-[var(--color-text-header)] mb-0.5">
+                    {pendingReviewRequest.profession || 'Professional'}
+                  </p>
+                  <p className="text-xs text-[var(--color-text-secondary)]">Shared Interests Found</p>
+                </div>
+
+                {/* Shared interests display (if interests exist) */}
+                <div className="flex flex-wrap gap-1.5 justify-center">
+                  {(pendingReviewRequest.interests || []).slice(0, 3).map((interest) => (
+                    <span key={interest} className="text-[10px] font-semibold text-[var(--color-primary-dark)] bg-[var(--color-primary)]/8 px-3 py-1 rounded-full border border-[var(--color-primary)]/10">
+                      {interest}
+                    </span>
+                  ))}
+                </div>
+
+                {/* Message display */}
+                {pendingReviewRequest.message && (
+                  <div className="bg-white/60 backdrop-blur-md rounded-2xl p-5 border border-[var(--color-sand)]/60 italic">
+                    <p className="text-[13px] text-[var(--color-text-primary)] leading-relaxed">
+                      "{pendingReviewRequest.message}"
+                    </p>
+                  </div>
+                )}
+
+                {/* Actions */}
+                <div className="flex flex-col gap-3 pt-2">
+                  <button
+                    onClick={() => handleAcceptConnection(pendingReviewRequest.connectionId)}
+                    disabled={updatingId === pendingReviewRequest.connectionId}
+                    className="btn-primary w-full py-5 text-sm shadow-premium flex items-center justify-center gap-2"
+                  >
+                    {updatingId === pendingReviewRequest.connectionId ? 'Processing...' : 'Accept Connection'}
+                  </button>
+                  <button
+                    onClick={() => handleDeclineConnection(pendingReviewRequest.connectionId)}
+                    disabled={updatingId === pendingReviewRequest.connectionId}
+                    className="w-full py-3 text-[11px] font-bold text-[var(--color-steel-light)] uppercase tracking-[0.2em] hover:text-[var(--color-text-primary)] transition-colors"
+                  >
+                    Ignore for now
+                  </button>
+                </div>
+              </div>
+
+              {/* Decorative accent */}
+              <div className="h-1 bg-gradient-to-r from-transparent via-[var(--color-primary)] to-transparent opacity-20" />
             </motion.div>
           </motion.div>
         )}

@@ -12,6 +12,10 @@ export default function Navbar() {
   const [pendingCount, setPendingCount] = useState(0);
 
   const isActive = (path: string) => location.pathname === path;
+  const isAdmin = user && (
+    APP_CONFIG.ADMIN_EMAILS.length === 0 ||
+    APP_CONFIG.ADMIN_EMAILS.includes(user.email?.toLowerCase() || '')
+  );
 
   useEffect(() => {
     if (!user) { setPendingCount(0); return; }
@@ -24,6 +28,9 @@ export default function Navbar() {
       return;
     }
 
+    // Fetch count once — no persistent realtime channel.
+    // Saves 1 Supabase concurrent connection per user (doubles free-tier capacity).
+    // Badge refreshes on tab focus so it stays reasonably fresh.
     const fetchCount = async () => {
       const { count } = await supabase
         .from('connections')
@@ -35,13 +42,10 @@ export default function Navbar() {
 
     fetchCount();
 
-    const channel = supabase
-      .channel('navbar-pending')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'connections', filter: `recipient_id=eq.${user.id}` }, fetchCount)
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-  }, [user, isDemo]);
+    const onFocus = () => fetchCount();
+    document.addEventListener('visibilitychange', onFocus);
+    return () => document.removeEventListener('visibilitychange', onFocus);
+  }, [user, isDemo, location.pathname]); // re-fetch on every page navigation too
 
   const navLink = (to: string, label: string, badge?: number) => (
     <Link
@@ -76,7 +80,21 @@ export default function Navbar() {
           {user ? (
             <>
               {navLink('/radar', 'Radar')}
+              {navLink('/chat', 'Messages')}
               {navLink('/connections', 'Network', pendingCount || undefined)}
+              {isAdmin && (
+                <Link
+                  to="/admin"
+                  className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${
+                    isActive('/admin')
+                      ? 'bg-[var(--color-accent)] text-white'
+                      : 'border border-[var(--color-sand)] text-[var(--color-steel-light)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]'
+                  }`}
+                  aria-label="Admin"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20V10M6 20V4M18 20v-6" /></svg>
+                </Link>
+              )}
               <Link
                 to="/profile"
                 className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${

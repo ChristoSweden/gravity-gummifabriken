@@ -13,7 +13,9 @@
       "Bash(git add src/App.tsx src/components/Navbar.tsx src/components/ProtectedRoute.tsx src/contexts/AuthContext.tsx src/pages/CampusRadarPage.tsx src/pages/ChatPage.tsx src/pages/ConnectionsPage.tsx src/pages/LoginPage.tsx src/pages/OnboardingPage.tsx src/pages/ProfilePage.tsx src/pages/RegisterPage.tsx src/pages/LandingPage.tsx src/services/supabaseService.ts src/services/mockData.ts src/index.css)",
       "Bash(npm i @vercel/analytics)",
       "Bash(git add src/index.css src/pages/OnboardingPage.tsx src/pages/CampusRadarPage.tsx src/pages/ConnectionsPage.tsx src/pages/ChatPage.tsx src/pages/ProfilePage.tsx)",
-      "Bash(npx vite --port 5173)"
+      "Bash(npx vite --port 5173)",
+      "Bash(npx vitest run)",
+      "Bash(ls -la .env*)"
     ]
   }
 }

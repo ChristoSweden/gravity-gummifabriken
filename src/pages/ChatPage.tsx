@@ -196,7 +196,7 @@ export default function ChatPage() {
       <header className="flex-shrink-0 glass-effect border-b border-[var(--color-sand)]/60 z-10">
         <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
           <button
-            onClick={() => navigate('/connections')}
+            onClick={() => navigate('/chat')}
             className="w-9 h-9 flex items-center justify-center text-[var(--color-steel-light)] hover:text-[var(--color-text-primary)] transition-colors rounded-lg flex-shrink-0"
             aria-label="Back"
           >

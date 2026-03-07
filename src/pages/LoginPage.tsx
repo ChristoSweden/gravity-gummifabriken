@@ -8,9 +8,9 @@ import { motion } from 'motion/react';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
+  const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
   const { user, loading, enterDemoMode } = useAuth();
 
@@ -18,16 +18,23 @@ export default function LoginPage() {
     if (user && !loading) navigate('/radar');
   }, [user, loading, navigate]);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleMagicLink = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email.trim()) return;
     setError(null);
-    setSubmitting(true);
-    const { error: err } = await supabase.auth.signInWithPassword({ email, password });
+    setSending(true);
+    const { error: err } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/radar`,
+        shouldCreateUser: true,
+      },
+    });
+    setSending(false);
     if (err) {
       setError(err.message);
-      setSubmitting(false);
     } else {
-      navigate('/radar');
+      setMagicLinkSent(true);
     }
   };
 
@@ -66,59 +73,63 @@ export default function LoginPage() {
         >
           <header className="text-center mb-10">
             <h1 className="font-serif text-3xl text-[var(--color-text-header)] mb-2">
-              Welcome back
+              Enter your email
             </h1>
             <p className="text-sm text-[var(--color-text-secondary)]">
-              Sign in to your account
+              We'll send you a magic link — no password needed
             </p>
           </header>
 
-          <form onSubmit={handleLogin} className="space-y-5">
-            <div>
-              <label className="section-label block mb-2">Email</label>
-              <input
-                type="email"
-                placeholder="name@company.com"
-                className="input-field"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoComplete="email"
-              />
-            </div>
-            <div>
-              <label className="section-label block mb-2">Password</label>
-              <input
-                type="password"
-                placeholder="Enter your password"
-                className="input-field"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                autoComplete="current-password"
-              />
-            </div>
-
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-[var(--color-error)]/5 border border-[var(--color-error)]/15 px-4 py-3 rounded-[var(--radius-md)]"
-              >
-                <p className="text-[var(--color-error)] text-sm">{error}</p>
-              </motion.div>
-            )}
-
-            <button
-              type="submit"
-              disabled={submitting}
-              className="btn-primary w-full py-4 text-sm mt-2"
+          {magicLinkSent ? (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="card p-8 text-center"
             >
-              {submitting ? 'Signing in...' : 'Sign In'}
-            </button>
-          </form>
+              <div className="w-14 h-14 bg-[var(--color-success)]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" /></svg>
+              </div>
+              <h3 className="font-serif text-xl text-[var(--color-text-header)] mb-2">Check your inbox</h3>
+              <p className="text-sm text-[var(--color-text-secondary)]">
+                We sent a link to <strong>{email}</strong>. Click it to sign in instantly.
+              </p>
+            </motion.div>
+          ) : (
+            <form onSubmit={handleMagicLink} className="space-y-5">
+              <div>
+                <input
+                  type="email"
+                  placeholder="name@company.com"
+                  className="input-field text-center text-[16px]"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoComplete="email"
+                  autoFocus
+                />
+              </div>
 
-          <div className="mt-10 space-y-5 text-center">
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-[var(--color-error)]/5 border border-[var(--color-error)]/15 px-4 py-3 rounded-[var(--radius-md)]"
+                >
+                  <p className="text-[var(--color-error)] text-sm">{error}</p>
+                </motion.div>
+              )}
+
+              <button
+                type="submit"
+                disabled={sending || !email.includes('@')}
+                className="btn-primary w-full py-4 text-sm"
+              >
+                {sending ? 'Sending...' : 'Continue'}
+              </button>
+            </form>
+          )}
+
+          <div className="mt-10 space-y-4 text-center">
             <button
               onClick={handleDemoLogin}
               className="btn-secondary w-full py-3.5 text-xs flex items-center justify-center gap-2"
@@ -126,16 +137,6 @@ export default function LoginPage() {
               <span className="w-1.5 h-1.5 bg-[var(--color-primary)] rounded-full animate-gentle-pulse" />
               Try Demo Mode
             </button>
-
-            <p className="text-sm text-[var(--color-text-secondary)]">
-              New to {APP_CONFIG.APP_NAME}?{' '}
-              <button
-                onClick={() => navigate('/onboarding')}
-                className="text-[var(--color-primary)] font-semibold hover:underline underline-offset-2"
-              >
-                Create an account
-              </button>
-            </p>
           </div>
         </motion.div>
       </div>
