@@ -180,7 +180,7 @@ export default function CampusRadarPage() {
     const stalenessCutoff = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
     const { data: profiles, error: pError } = await supabase
       .from('profiles')
-      .select('id, full_name, interests, profession, company, is_incognito, is_present, last_seen_at')
+      .select('id, full_name, interests, profession, company, avatar_url, is_incognito, is_present, last_seen_at')
       .or(`id.eq.${user.id},and(is_present.eq.true,last_seen_at.gte.${stalenessCutoff})`);
 
     if (pError || !profiles) {
@@ -246,38 +246,40 @@ export default function CampusRadarPage() {
     }
 
     // Activity feed: recent check-ins and connections (last 2 hours)
+    // Uses RPC function to bypass RLS and show venue-wide activity
     if (!isDemo) {
-      const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
-      const [{ data: recentPresence }, { data: recentConns }] = await Promise.all([
-        supabase.from('profiles').select('full_name, last_seen_at').eq('is_present', true).gte('last_seen_at', twoHoursAgo).order('last_seen_at', { ascending: false }).limit(5),
-        supabase.from('connections').select('created_at').eq('status', 'accepted').gte('created_at', twoHoursAgo).order('created_at', { ascending: false }).limit(5),
-      ]);
-
-      const feed: typeof activityFeed = [];
-      (recentPresence || []).forEach((p) => {
-        const mins = Math.floor((Date.now() - new Date(p.last_seen_at).getTime()) / 60000);
-        feed.push({
-          id: `join-${p.full_name}-${p.last_seen_at}`,
-          text: `${p.full_name?.split(' ')[0] || 'Someone'} checked in`,
-          time: mins < 1 ? 'just now' : mins < 60 ? `${mins}m ago` : `${Math.floor(mins / 60)}h ago`,
-          type: 'join',
+      const { data: feedData } = await supabase.rpc('get_activity_feed');
+      if (feedData) {
+        const raw = feedData as {
+          recent_presence: { full_name: string; last_seen_at: string }[];
+          recent_connections: { created_at: string }[];
+        };
+        const feed: typeof activityFeed = [];
+        (raw.recent_presence || []).forEach((p) => {
+          const mins = Math.floor((Date.now() - new Date(p.last_seen_at).getTime()) / 60000);
+          feed.push({
+            id: `join-${p.full_name}-${p.last_seen_at}`,
+            text: `${p.full_name?.split(' ')[0] || 'Someone'} checked in`,
+            time: mins < 1 ? 'just now' : mins < 60 ? `${mins}m ago` : `${Math.floor(mins / 60)}h ago`,
+            type: 'join',
+          });
         });
-      });
-      (recentConns || []).forEach((c) => {
-        const mins = Math.floor((Date.now() - new Date(c.created_at).getTime()) / 60000);
-        feed.push({
-          id: `conn-${c.created_at}`,
-          text: 'New connection made',
-          time: mins < 1 ? 'just now' : mins < 60 ? `${mins}m ago` : `${Math.floor(mins / 60)}h ago`,
-          type: 'connect',
+        (raw.recent_connections || []).forEach((c) => {
+          const mins = Math.floor((Date.now() - new Date(c.created_at).getTime()) / 60000);
+          feed.push({
+            id: `conn-${c.created_at}`,
+            text: 'New connection made',
+            time: mins < 1 ? 'just now' : mins < 60 ? `${mins}m ago` : `${Math.floor(mins / 60)}h ago`,
+            type: 'connect',
+          });
         });
-      });
-      feed.sort((a, b) => {
-        const aMs = a.time === 'just now' ? 0 : parseInt(a.time);
-        const bMs = b.time === 'just now' ? 0 : parseInt(b.time);
-        return aMs - bMs;
-      });
-      setActivityFeed(feed.slice(0, 5));
+        feed.sort((a, b) => {
+          const aMs = a.time === 'just now' ? 0 : parseInt(a.time);
+          const bMs = b.time === 'just now' ? 0 : parseInt(b.time);
+          return aMs - bMs;
+        });
+        setActivityFeed(feed.slice(0, 5));
+      }
     }
 
     setLoading(false);

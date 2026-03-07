@@ -53,66 +53,50 @@ export default function AdminPage() {
   const fetchAnalytics = async () => {
     setLoadingAnalytics(true);
 
-    const stalenessCutoff = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
+    const { data, error: rpcError } = await supabase.rpc('get_admin_analytics');
 
-    const [
-      { count: totalUsers },
-      { count: presentNow },
-      { count: totalConnections },
-      { count: pendingConnections },
-      { count: totalMessages },
-      { data: profiles },
-      { data: recentSignups },
-      { data: recentConnections },
-      { data: recentMessages },
-    ] = await Promise.all([
-      supabase.from('profiles').select('id', { count: 'exact', head: true }),
-      supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('is_present', true).gte('last_seen_at', stalenessCutoff),
-      supabase.from('connections').select('id', { count: 'exact', head: true }).eq('status', 'accepted'),
-      supabase.from('connections').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-      supabase.from('messages').select('id', { count: 'exact', head: true }),
-      supabase.from('profiles').select('interests'),
-      supabase.from('profiles').select('id, full_name, created_at').order('created_at', { ascending: false }).limit(8),
-      supabase.from('connections').select('created_at').gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()),
-      supabase.from('messages').select('created_at').gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()),
-    ]);
+    if (rpcError || !data) {
+      console.error('Admin analytics RPC failed:', rpcError);
+      setLoadingAnalytics(false);
+      return;
+    }
 
-    // Compute top interests
-    const interestCount: Record<string, number> = {};
-    (profiles || []).forEach((p) => {
-      (p.interests || []).forEach((i: string) => {
-        interestCount[i] = (interestCount[i] || 0) + 1;
-      });
-    });
-    const topInterests = Object.entries(interestCount)
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10);
+    const raw = data as {
+      total_users: number;
+      present_now: number;
+      total_connections: number;
+      pending_connections: number;
+      total_messages: number;
+      top_interests: { name: string; count: number }[];
+      recent_signups: { id: string; full_name: string; created_at: string }[];
+      recent_connections: { created_at: string }[];
+      recent_messages: { created_at: string }[];
+    };
 
     // Activity by hour (last 24h)
     const hourMap: Record<number, { connections: number; messages: number }> = {};
     for (let h = 0; h < 24; h++) hourMap[h] = { connections: 0, messages: 0 };
-    (recentConnections || []).forEach((c) => {
+    (raw.recent_connections || []).forEach((c) => {
       const h = new Date(c.created_at).getHours();
       hourMap[h].connections++;
     });
-    (recentMessages || []).forEach((m) => {
+    (raw.recent_messages || []).forEach((m) => {
       const h = new Date(m.created_at).getHours();
       hourMap[h].messages++;
     });
-    const activityByHour = Object.entries(hourMap).map(([hour, data]) => ({
+    const activityByHour = Object.entries(hourMap).map(([hour, d]) => ({
       hour: parseInt(hour),
-      ...data,
+      ...d,
     }));
 
     setAnalytics({
-      totalUsers: totalUsers || 0,
-      presentNow: presentNow || 0,
-      totalConnections: totalConnections || 0,
-      pendingConnections: pendingConnections || 0,
-      totalMessages: totalMessages || 0,
-      topInterests,
-      recentSignups: recentSignups || [],
+      totalUsers: raw.total_users || 0,
+      presentNow: raw.present_now || 0,
+      totalConnections: raw.total_connections || 0,
+      pendingConnections: raw.pending_connections || 0,
+      totalMessages: raw.total_messages || 0,
+      topInterests: raw.top_interests || [],
+      recentSignups: raw.recent_signups || [],
       activityByHour,
     });
     setLoadingAnalytics(false);

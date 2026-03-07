@@ -18,6 +18,7 @@ interface Profile {
   full_name: string;
   interests: string[];
   profession?: string;
+  avatar_url?: string;
 }
 
 export default function ConnectionsPage() {
@@ -67,7 +68,7 @@ export default function ConnectionsPage() {
 
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('id, full_name, interests, profession')
+      .select('id, full_name, interests, profession, avatar_url')
       .in('id', otherIds);
 
     const profileMap: Record<string, Profile> = {};
@@ -162,8 +163,14 @@ export default function ConnectionsPage() {
                 {pendingRequests.map((req) => (
                   <motion.div layout key={req.id} className="card p-4">
                     <div className="flex items-center gap-4 mb-4">
-                      <div className="w-11 h-11 rounded-xl bg-[var(--color-accent)] flex items-center justify-center text-white font-serif text-lg flex-shrink-0">
-                        {req.profile.full_name?.charAt(0) || '?'}
+                      <div className="w-11 h-11 rounded-xl overflow-hidden flex-shrink-0">
+                        {req.profile.avatar_url ? (
+                          <img src={req.profile.avatar_url} alt={req.profile.full_name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full bg-[var(--color-accent)] flex items-center justify-center text-white font-serif text-lg">
+                            {req.profile.full_name?.charAt(0) || '?'}
+                          </div>
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <h4 className="font-serif text-[var(--color-text-header)] truncate">{req.profile.full_name}</h4>
@@ -193,8 +200,14 @@ export default function ConnectionsPage() {
                   {accepted.map((conn) => (
                     <motion.div layout key={conn.id}>
                       <Link to={`/chat/${conn.profile.id}`} className="card card-interactive p-4 flex items-center gap-4 block">
-                        <div className="w-11 h-11 rounded-xl bg-[var(--color-primary)] flex items-center justify-center text-white font-serif text-lg flex-shrink-0">
-                          {conn.profile.full_name?.charAt(0) || '?'}
+                        <div className="w-11 h-11 rounded-xl overflow-hidden flex-shrink-0">
+                          {conn.profile.avatar_url ? (
+                            <img src={conn.profile.avatar_url} alt={conn.profile.full_name} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full bg-[var(--color-primary)] flex items-center justify-center text-white font-serif text-lg">
+                              {conn.profile.full_name?.charAt(0) || '?'}
+                            </div>
+                          )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <h4 className="font-serif text-[var(--color-text-header)] truncate">{conn.profile.full_name}</h4>
