@@ -149,8 +149,8 @@ export default function OnboardingPage() {
     // depending on project settings. Try to sign in immediately.
     const { error: autoSignInErr } = await supabase.auth.signInWithPassword({ email, password });
     if (autoSignInErr) {
-      // Email confirmation required — but we still keep user in-app
-      setError('Check your email to confirm, then come back and log in.');
+      // Email confirmation required
+      setError('Almost there! Check your inbox for a confirmation link, then log in.');
       setSaving(false);
       return;
     }

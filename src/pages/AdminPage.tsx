@@ -138,6 +138,8 @@ export default function AdminPage() {
         if (error) {
           inviteResults.push({ email, status: 'error', message: error.message });
         } else {
+          // Record in allowlist so restricted signup mode works
+          await supabase.from('invited_emails').upsert({ email, invited_by: user?.id }).catch(() => {});
           inviteResults.push({ email, status: 'sent' });
         }
       } catch (e: any) {

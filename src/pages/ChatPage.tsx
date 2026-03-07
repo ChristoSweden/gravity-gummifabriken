@@ -34,6 +34,7 @@ export default function ChatPage() {
   const [recipientAvatar, setRecipientAvatar] = useState('');
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -137,7 +138,10 @@ export default function ChatPage() {
       .select()
       .single();
 
-    if (!error && data) {
+    if (error) {
+      setSendError('Message failed to send. Please try again.');
+      setTimeout(() => setSendError(null), 4000);
+    } else if (data) {
       setMessages((prev) => [...prev, data]);
       setNewMessage('');
       if (textareaRef.current) textareaRef.current.style.height = 'auto';
@@ -310,6 +314,20 @@ export default function ChatPage() {
           <div ref={scrollRef} className="h-2" />
         </div>
       </div>
+
+      {/* ── Send error toast ── */}
+      <AnimatePresence>
+        {sendError && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            className="absolute bottom-24 left-4 right-4 mx-auto max-w-lg bg-[var(--color-error)]/95 text-white text-sm text-center px-4 py-2.5 rounded-xl shadow-lg z-10"
+          >
+            {sendError}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Input bar ── */}
       <div className="flex-shrink-0 bg-[var(--color-bg-warm)] border-t border-[var(--color-sand)]/60 px-4 py-3 safe-bottom">

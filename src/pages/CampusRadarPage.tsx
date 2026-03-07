@@ -19,6 +19,18 @@ function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+/** Stable pseudo-random distance (10–180m) based on two user IDs.
+ *  Since GPS coords aren't stored, this gives each pair a consistent
+ *  "nearby" feel without revealing real positions. */
+function stableDistance(idA: string, idB: string): number {
+  const pair = [idA, idB].sort().join(':');
+  let hash = 0;
+  for (let i = 0; i < pair.length; i++) {
+    hash = ((hash << 5) - hash + pair.charCodeAt(i)) | 0;
+  }
+  return 10 + Math.abs(hash % 171); // 10–180m
+}
+
 type PresenceStatus = 'checking' | 'present' | 'absent' | 'manual' | 'gps_denied' | 'gps_unavailable';
 
 const MOCK_DISTANCES: Record<string, number> = {
@@ -195,10 +207,11 @@ export default function CampusRadarPage() {
 
     if (me?.interests) {
       const withOverlap: MatchProfile[] = others
-        .map((p, idx) => ({
+        .map((p) => ({
           ...p,
           overlap: getInterestOverlap(me as Profile, p as Profile),
-          distance_m: 30 + idx * 35,
+          // Stable pseudo-random distance based on user ID pair (privacy-safe: no real coords stored)
+          distance_m: stableDistance(user.id, p.id),
         }))
         .filter((p) => p.overlap.length > 0)
         .sort((a, b) => b.overlap.length - a.overlap.length);
@@ -356,9 +369,13 @@ export default function CampusRadarPage() {
     });
 
     if (connError) {
-      setError(connError.message.includes('duplicate') || connError.message.includes('reverse')
-        ? 'Connection already exists.'
-        : 'Failed to send request. Please try again.');
+      let msg = 'Failed to send request. Please try again.';
+      if (connError.message.includes('duplicate') || connError.message.includes('reverse')) {
+        msg = 'Connection already exists.';
+      } else if (connError.message.includes('rate') || connError.message.includes('limit') || connError.message.includes('too many')) {
+        msg = 'Slow down — too many requests. Try again in a few minutes.';
+      }
+      setError(msg);
       setSendingTo(null);
       setSelectedMatch(null);
       setInvitationMessage('');
@@ -366,11 +383,15 @@ export default function CampusRadarPage() {
     }
 
     if (invitationMessage.trim()) {
-      await supabase.from('messages').insert({
+      const { error: msgErr } = await supabase.from('messages').insert({
         sender_id: user.id,
         recipient_id: recipientId,
         content: invitationMessage.trim(),
       });
+      if (msgErr) {
+        console.warn('Icebreaker message failed:', msgErr.message);
+        // Connection was created — proceed but note the message didn't send
+      }
     }
 
     setConnectionStatuses((prev) => ({ ...prev, [recipientId]: 'pending_sent' }));
@@ -391,7 +412,12 @@ export default function CampusRadarPage() {
       if (requesterId) navigate(`/chat/${requesterId}`);
       return;
     }
-    await supabase.from('connections').update({ status: 'accepted' }).eq('id', connectionId);
+    const { error: acceptErr } = await supabase.from('connections').update({ status: 'accepted' }).eq('id', connectionId);
+    if (acceptErr) {
+      setError('Failed to accept connection. Please try again.');
+      setUpdatingId(null);
+      return;
+    }
     setPendingReviewRequest(null);
     setUpdatingId(null);
     if (requesterId) navigate(`/chat/${requesterId}`);
@@ -406,7 +432,12 @@ export default function CampusRadarPage() {
       await fetchData();
       return;
     }
-    await supabase.from('connections').delete().eq('id', connectionId);
+    const { error: declineErr } = await supabase.from('connections').delete().eq('id', connectionId);
+    if (declineErr) {
+      setError('Failed to decline. Please try again.');
+      setUpdatingId(null);
+      return;
+    }
     setPendingReviewRequest(null);
     setUpdatingId(null);
     await fetchData();
