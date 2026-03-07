@@ -112,7 +112,7 @@ export default function ChatPage() {
           });
           // Auto-mark as read since chat is open
           if (!isDemo) {
-            supabase.from('messages').update({ read_at: new Date().toISOString() }).eq('id', payload.new.id).then();
+            supabase.from('messages').update({ read_at: new Date().toISOString() }).eq('id', payload.new.id).then(() => {}, () => {});
           }
         }
       })
@@ -146,7 +146,7 @@ export default function ChatPage() {
         .eq('sender_id', userId)
         .eq('recipient_id', user.id)
         .is('read_at', null)
-        .then();
+        .then(() => {}, () => {});
     }
 
     return () => {
@@ -424,7 +424,7 @@ export default function ChatPage() {
                     {!isMine && !sameSenderAsPrev && (
                       <div className="w-7 h-7 rounded-full overflow-hidden mr-2 self-end flex-shrink-0">
                         {recipientAvatar ? (
-                          <img src={recipientAvatar} alt="" className="w-full h-full object-cover" />
+                          <img src={recipientAvatar} alt={recipientName} className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full bg-[var(--color-primary)] flex items-center justify-center text-white text-[10px] font-bold">
                             {recipientName.charAt(0)}

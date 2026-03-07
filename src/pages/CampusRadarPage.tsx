@@ -117,11 +117,12 @@ export default function CampusRadarPage() {
           );
           const atVenue = dist <= APP_CONFIG.PRESENCE_RADIUS_M;
           setPresenceStatus(atVenue ? 'present' : 'absent');
-          // Update own presence regardless — clears stale check-ins for those who left
-          await supabase.from('profiles').update({
-            is_present: atVenue,
-            last_seen_at: atVenue ? new Date().toISOString() : null,
-          }).eq('id', user.id);
+          try {
+            await supabase.from('profiles').update({
+              is_present: atVenue,
+              last_seen_at: atVenue ? new Date().toISOString() : null,
+            }).eq('id', user.id);
+          } catch { /* network error — presence will sync on next check */ }
           resolve(atVenue);
         },
         (err) => {
@@ -196,9 +197,7 @@ export default function CampusRadarPage() {
       .or(`id.eq.${user.id},and(is_present.eq.true,last_seen_at.gte.${stalenessCutoff})`);
 
     if (pError || !profiles) {
-      setError('Unable to load nearby profiles.');
-      // Auto-retry once after 3 seconds
-      setTimeout(() => fetchData(), 3000);
+      setError('Unable to load nearby profiles. Retrying...');
       setLoading(false);
       return;
     }

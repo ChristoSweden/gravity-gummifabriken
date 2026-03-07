@@ -12,6 +12,13 @@ if (savedTheme) {
   document.documentElement.setAttribute('data-theme', savedTheme);
 }
 
+// Register service worker for offline support and push notifications
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
+
 const rootElement = document.getElementById('root');
 if (rootElement) {
   const root = ReactDOMClient.createRoot ? ReactDOMClient.createRoot(rootElement) : (ReactDOMClient as any).default.createRoot(rootElement);

@@ -93,7 +93,7 @@ export default function ProfilePage() {
         setIsIncognito(data.is_incognito || false);
         setProfileBlur(data.profile_blur ?? true);
       }
-      setNetworkCount(count || 0);
+      setNetworkCount(count ?? 0);
       setLoading(false);
     };
 
@@ -169,7 +169,12 @@ export default function ProfilePage() {
     const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
     const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`;
 
-    await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', user.id);
+    const { error: profileErr } = await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', user.id);
+    if (profileErr) {
+      setError('Photo uploaded but profile update failed. Try again.');
+      setUploadingAvatar(false);
+      return;
+    }
     setAvatarUrl(publicUrl);
     setUploadingAvatar(false);
     setMessage('Photo updated');
