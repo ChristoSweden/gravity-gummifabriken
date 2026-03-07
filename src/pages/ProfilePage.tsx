@@ -43,6 +43,8 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [networkCount, setNetworkCount] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -58,15 +60,23 @@ export default function ProfilePage() {
         setCompany(profile.company || '');
         setInterestTags(profile.interests || []);
         setIntent(profile.intent || '');
+        setNetworkCount(0);
         setLoading(false);
         return;
       }
 
-      const { data, error: fetchErr } = await supabase
-        .from('profiles')
-        .select('full_name, profession, company, interests, intent, gps_enabled, notifications_enabled, is_incognito, profile_blur, avatar_url')
-        .eq('id', user.id)
-        .single();
+      const [{ data, error: fetchErr }, { count }] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('full_name, profession, company, interests, intent, gps_enabled, notifications_enabled, is_incognito, profile_blur, avatar_url')
+          .eq('id', user.id)
+          .single(),
+        supabase
+          .from('connections')
+          .select('id', { count: 'exact', head: true })
+          .eq('status', 'accepted')
+          .or(`requester_id.eq.${user.id},recipient_id.eq.${user.id}`),
+      ]);
 
       if (fetchErr) {
         setError('Could not load profile.');
@@ -82,6 +92,7 @@ export default function ProfilePage() {
         setIsIncognito(data.is_incognito || false);
         setProfileBlur(data.profile_blur ?? true);
       }
+      setNetworkCount(count || 0);
       setLoading(false);
     };
 
@@ -101,6 +112,7 @@ export default function ProfilePage() {
       setDemoInterests(interestTags);
       setMessage('Profile updated');
       setSaving(false);
+      setEditing(false);
       setTimeout(() => setMessage(null), 3000);
       return;
     }
@@ -118,7 +130,7 @@ export default function ProfilePage() {
     });
 
     if (updateError) setError(updateError.message);
-    else { setMessage('Profile saved'); setTimeout(() => setMessage(null), 3000); }
+    else { setMessage('Profile saved'); setEditing(false); setTimeout(() => setMessage(null), 3000); }
     setSaving(false);
   };
 
@@ -129,7 +141,6 @@ export default function ProfilePage() {
     setUploadingAvatar(true);
     setError(null);
 
-    // Client-side resize to max 512px for fast uploads
     const resized = await resizeImage(file, 512);
     const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
     const path = `${user.id}/avatar.${ext}`;
@@ -205,8 +216,6 @@ export default function ProfilePage() {
     if (!user) return;
     if (!window.confirm('This will permanently delete your account and all data. This cannot be undone.')) return;
 
-    // delete_user() is SECURITY DEFINER — deletes auth.users row which
-    // CASCADEs to profiles, connections, and messages (full GDPR erasure).
     const { error: deleteError } = await supabase.rpc('delete_user');
     if (deleteError) {
       setError('Account deletion failed. Please contact support.');
@@ -260,14 +269,69 @@ export default function ProfilePage() {
     </div>
   );
 
+  const SettingsRow = ({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick?: () => void }) => (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full flex items-center gap-3 py-4 text-left hover:bg-[var(--color-mist)]/50 transition-colors -mx-1 px-1 rounded-lg"
+    >
+      <span className="text-[var(--color-steel-light)]">{icon}</span>
+      <span className="flex-1 text-[15px] text-[var(--color-text-primary)]">{label}</span>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-steel-light)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
+    </button>
+  );
+
   return (
-    <div className="min-h-screen bg-[var(--color-bg-warm)] pb-24">
-      <div className="max-w-lg mx-auto px-6 pt-8">
-        {/* Header */}
-        <header className="mb-8">
-          <h2 className="font-serif text-3xl text-[var(--color-text-header)] mb-1">Profile</h2>
-          <p className="text-sm text-[var(--color-text-secondary)]">Identity, privacy & settings</p>
-        </header>
+    <div className="min-h-screen bg-[var(--color-bg-warm)] pb-28">
+      {/* Copper banner */}
+      <div className="h-24 bg-[var(--color-primary)]" />
+
+      {/* Avatar overlapping banner */}
+      <div className="max-w-lg mx-auto px-6 -mt-12">
+        <div className="flex flex-col items-center mb-6">
+          <div className="relative group mb-3">
+            <div className="w-24 h-24 rounded-2xl overflow-hidden border-4 border-[var(--color-bg-warm)] shadow-lg">
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full bg-[var(--color-primary)] flex items-center justify-center text-white font-serif text-3xl">
+                  {fullName.charAt(0) || '?'}
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingAvatar || isDemo}
+              className="absolute bottom-0 right-0 w-8 h-8 bg-[var(--color-primary)] text-white rounded-full flex items-center justify-center border-2 border-[var(--color-bg-warm)] hover:bg-[var(--color-primary-dark)] transition-colors"
+            >
+              {uploadingAvatar ? (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" />
+                </svg>
+              )}
+            </button>
+          </div>
+          <input ref={fileInputRef} type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
+          <h2 className="font-serif text-2xl text-[var(--color-text-header)]">{fullName || 'Your Name'}</h2>
+          <p className="text-[13px] text-[var(--color-text-secondary)] mt-0.5">
+            {[profession, company].filter(Boolean).join(' · ') || 'Add your role'}
+          </p>
+        </div>
+
+        {/* Stats row */}
+        <div className="grid grid-cols-2 gap-3 mb-8">
+          <div className="bg-[var(--color-mist)] border border-[var(--color-sand)] rounded-2xl p-4 text-center">
+            <div className="font-serif text-2xl text-[var(--color-primary)]">{networkCount}</div>
+            <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-steel-light)] mt-1">Network</div>
+          </div>
+          <div className="bg-[var(--color-mist)] border border-[var(--color-sand)] rounded-2xl p-4 text-center">
+            <div className="font-serif text-2xl text-[var(--color-primary)]">{interestTags.length}</div>
+            <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-steel-light)] mt-1">Interests</div>
+          </div>
+        </div>
 
         {/* Toast */}
         {(message || error) && (
@@ -278,54 +342,34 @@ export default function ProfilePage() {
           </div>
         )}
 
-        <form onSubmit={handleSave} className="space-y-8">
-          {/* Avatar */}
-          <section className="flex flex-col items-center mb-2">
-            <div className="relative group">
-              <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-[var(--color-sand)] shadow-md">
-                {avatarUrl ? (
-                  <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full bg-[var(--color-primary)] flex items-center justify-center text-white font-serif text-3xl">
-                    {fullName.charAt(0) || '?'}
-                  </div>
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploadingAvatar || isDemo}
-                className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center"
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-0 group-hover:opacity-100 transition-opacity">
-                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" />
-                </svg>
-              </button>
-              {uploadingAvatar && (
-                <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center">
-                  <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                </div>
-              )}
-            </div>
-            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
-            <p className="text-[11px] text-[var(--color-text-secondary)] mt-2">Tap to change photo</p>
-          </section>
+        {/* Interests & Intent section */}
+        <section className="card p-5 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="section-label">Interests & Intent</h3>
+            <button
+              type="button"
+              onClick={() => setEditing(!editing)}
+              className="text-[11px] font-bold uppercase tracking-widest text-[var(--color-primary)] border border-[var(--color-primary)]/20 px-3 py-1 rounded-full hover:bg-[var(--color-primary)]/5 transition-colors"
+            >
+              {editing ? 'Cancel' : 'Edit'}
+            </button>
+          </div>
 
-          {/* Identity */}
-          <section>
-            <h3 className="section-label mb-4">Identity</h3>
-            <div className="card p-5 space-y-4">
+          {editing ? (
+            <form onSubmit={handleSave} className="space-y-4">
               <div>
                 <label className="section-label block mb-1.5">Full Name</label>
                 <input type="text" className="input-field" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
               </div>
-              <div>
-                <label className="section-label block mb-1.5">Profession</label>
-                <input type="text" className="input-field" value={profession} onChange={(e) => setProfession(e.target.value)} placeholder="e.g. Software Engineer" />
-              </div>
-              <div>
-                <label className="section-label block mb-1.5">Company</label>
-                <input type="text" className="input-field" value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Optional" />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="section-label block mb-1.5">Profession</label>
+                  <input type="text" className="input-field" value={profession} onChange={(e) => setProfession(e.target.value)} placeholder="e.g. Designer" />
+                </div>
+                <div>
+                  <label className="section-label block mb-1.5">Company</label>
+                  <input type="text" className="input-field" value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Optional" />
+                </div>
               </div>
               <div>
                 <label className="section-label block mb-1.5">Interests</label>
@@ -349,63 +393,115 @@ export default function ProfilePage() {
                     placeholder={interestTags.length === 0 ? 'Type and press Enter...' : ''}
                   />
                 </div>
-                <p className="text-[11px] text-[var(--color-text-secondary)] mt-1">Press Enter or comma to add</p>
               </div>
               <div>
-                <label className="section-label block mb-1.5">Intent</label>
+                <label className="section-label block mb-1.5">Professional Intent</label>
                 <textarea className="input-field min-h-[64px] resize-none" value={intent} onChange={(e) => setIntent(e.target.value)} placeholder="What are you looking for?" />
               </div>
+              <button type="submit" disabled={saving} className="btn-primary w-full py-3.5 text-xs">
+                {saving ? 'Saving...' : 'Save Changes'}
+              </button>
+            </form>
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <p className="section-label mb-2">Core Interests</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {interestTags.length > 0 ? interestTags.map((tag) => (
+                    <span key={tag} className="text-[12px] font-medium text-[var(--color-text-primary)] bg-[var(--color-mist)] border border-[var(--color-sand)] px-3 py-1 rounded-full">
+                      {tag}
+                    </span>
+                  )) : (
+                    <p className="text-sm text-[var(--color-text-secondary)] italic">No interests added yet</p>
+                  )}
+                </div>
+              </div>
+              {intent && (
+                <div>
+                  <p className="section-label mb-2">Professional Intent</p>
+                  <p className="text-[14px] text-[var(--color-text-primary)] italic leading-relaxed">"{intent}"</p>
+                </div>
+              )}
             </div>
-          </section>
+          )}
+        </section>
 
-          {/* Proximity */}
-          <section>
-            <h3 className="section-label mb-4">Proximity</h3>
-            <div className="card p-5">
-              <Toggle value={gpsEnabled} onToggle={() => setGpsEnabled(!gpsEnabled)} label="GPS Location" desc={`Detect proximity to ${APP_CONFIG.LOCATION_NAME}`} />
-              <div className="section-divider my-1" />
-              <Toggle value={notificationsEnabled} onToggle={() => setNotificationsEnabled(!notificationsEnabled)} label="Notifications" desc="Get notified on connection requests" />
-            </div>
-          </section>
+        {/* App Settings */}
+        <section className="card p-5 mb-6">
+          <SettingsRow
+            icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>}
+            label="App Settings"
+            onClick={() => setEditing(true)}
+          />
+          <div className="section-divider" />
+          <div className="py-2">
+            <Toggle value={gpsEnabled} onToggle={() => setGpsEnabled(!gpsEnabled)} label="GPS Location" desc={`Detect proximity to ${APP_CONFIG.LOCATION_NAME}`} />
+            <div className="section-divider my-1" />
+            <Toggle value={notificationsEnabled} onToggle={() => setNotificationsEnabled(!notificationsEnabled)} label="Notifications" desc="Get notified on connection requests" />
+          </div>
+        </section>
 
-          {/* Privacy */}
-          <section>
-            <h3 className="section-label mb-4">Privacy</h3>
-            <div className="card p-5">
-              <Toggle value={isIncognito} onToggle={() => setIsIncognito(!isIncognito)} label="Incognito Mode" desc="Hide your profile from the radar" />
-              <div className="section-divider my-1" />
-              <Toggle value={profileBlur} onToggle={() => setProfileBlur(!profileBlur)} label="Profile Blur" desc="Blur details for unconnected users" />
-            </div>
-          </section>
+        {/* Privacy Settings */}
+        <section className="card p-5 mb-6">
+          <div className="flex items-center gap-3 mb-3">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-steel-light)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span className="text-[15px] font-medium text-[var(--color-text-primary)]">Privacy Settings</span>
+          </div>
+          <Toggle value={isIncognito} onToggle={() => setIsIncognito(!isIncognito)} label="Incognito Mode" desc="Hide your profile from the radar" />
+          <div className="section-divider my-1" />
+          <Toggle value={profileBlur} onToggle={() => setProfileBlur(!profileBlur)} label="Profile Blur" desc="Blur details for unconnected users" />
+        </section>
 
-          {/* Save */}
-          <button type="submit" disabled={saving} className="btn-primary w-full py-4 text-sm">
-            {saving ? 'Saving...' : 'Save Changes'}
-          </button>
-        </form>
-
-        {/* Data & Privacy */}
-        <section className="mt-12 pt-8 border-t border-[var(--color-sand)]">
-          <h3 className="section-label mb-4">Data & Privacy</h3>
+        {/* GDPR Compliance */}
+        <section className="card p-5 mb-6">
+          <div className="flex items-center gap-3 mb-4">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-steel-light)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <span className="text-[15px] font-medium text-[var(--color-text-primary)]">GDPR Compliance</span>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <button onClick={handleExportData} className="btn-secondary py-3 text-xs">
               Export Data
             </button>
             <button
               onClick={handleDeleteAccount}
-              className="py-3 text-xs font-semibold uppercase tracking-widest text-[var(--color-error)] border-1.5 border-[var(--color-error)]/15 rounded-full hover:bg-[var(--color-error)]/5 transition-colors"
+              className="py-3 text-xs font-semibold uppercase tracking-widest text-[var(--color-error)] border border-[var(--color-error)]/15 rounded-full hover:bg-[var(--color-error)]/5 transition-colors"
             >
               Delete Account
             </button>
           </div>
         </section>
 
+        {/* Save settings (GPS, notifications, privacy) */}
+        {!editing && (
+          <button
+            type="button"
+            onClick={async () => {
+              if (!user || isDemo) return;
+              setSaving(true);
+              await supabase.from('profiles').update({
+                gps_enabled: gpsEnabled,
+                notifications_enabled: notificationsEnabled,
+                is_incognito: isIncognito,
+                profile_blur: profileBlur,
+                updated_at: new Date().toISOString(),
+              }).eq('id', user.id);
+              setSaving(false);
+              setMessage('Settings saved');
+              setTimeout(() => setMessage(null), 3000);
+            }}
+            disabled={saving}
+            className="btn-primary w-full py-3.5 text-xs mb-6"
+          >
+            {saving ? 'Saving...' : 'Save Settings'}
+          </button>
+        )}
+
         {/* Sign out */}
         <button
           onClick={handleLogout}
-          className="w-full mt-6 mb-4 py-3 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors"
+          className="w-full mb-4 py-3 text-sm font-medium text-[var(--color-error)] hover:text-[var(--color-error)]/80 transition-colors"
         >
-          Sign Out
+          Logout
         </button>
       </div>
     </div>

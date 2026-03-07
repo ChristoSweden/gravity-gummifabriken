@@ -411,8 +411,8 @@ export default function CampusRadarPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg-warm)] pb-24">
-      <div className="max-w-lg mx-auto px-6 pt-8">
+    <div className="min-h-screen bg-[var(--color-bg-warm)] pb-28">
+      <div className="max-w-lg mx-auto px-6 pt-6">
 
         {/* ── Plan B: Manual check-in banner (GPS denied / outside venue) ── */}
         <AnimatePresence>
@@ -483,33 +483,30 @@ export default function CampusRadarPage() {
           )}
         </AnimatePresence>
 
-        {/* Header */}
-        <header className="flex items-center justify-between mb-8">
-          <div>
-            <h2 className="font-serif text-3xl text-[var(--color-text-header)] mb-1">Radar</h2>
-            <p className="text-sm text-[var(--color-text-secondary)]">
-              {APP_CONFIG.RADAR_RADIUS} radius · {APP_CONFIG.LOCATION_NAME}
-            </p>
-          </div>
+        {/* Status badge row */}
+        <div className="flex items-center justify-between mb-6">
+          <p className="text-[13px] text-[var(--color-text-secondary)]">
+            {APP_CONFIG.RADAR_RADIUS} radius
+          </p>
           {presenceStatus === 'present' || presenceStatus === 'manual' || isDemo ? (
-            <div className="flex items-center gap-1.5 bg-[var(--color-success)]/10 border border-[var(--color-success)]/20 px-3 py-1.5 rounded-full">
+            <div className="flex items-center gap-1.5 bg-white border border-[var(--color-sand)] px-3 py-1.5 rounded-full">
               <span className="w-2 h-2 bg-[var(--color-success)] rounded-full animate-gentle-pulse" />
-              <span className="text-[11px] font-semibold uppercase tracking-widest text-[var(--color-success)]">
+              <span className="text-[11px] font-semibold uppercase tracking-widest text-[var(--color-primary)]">
                 {presenceStatus === 'manual' ? 'Checked in' : 'Active'}
               </span>
             </div>
           ) : presenceStatus === 'checking' ? (
-            <div className="flex items-center gap-1.5 bg-[var(--color-sand)]/60 border border-[var(--color-sand)] px-3 py-1.5 rounded-full">
+            <div className="flex items-center gap-1.5 bg-white border border-[var(--color-sand)] px-3 py-1.5 rounded-full">
               <span className="w-2 h-2 bg-[var(--color-steel-light)] rounded-full animate-gentle-pulse" />
               <span className="text-[11px] font-semibold uppercase tracking-widest text-[var(--color-steel-light)]">Locating...</span>
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 bg-[var(--color-sand-light)] border border-[var(--color-sand)] px-3 py-1.5 rounded-full">
+            <div className="flex items-center gap-1.5 bg-white border border-[var(--color-sand)] px-3 py-1.5 rounded-full">
               <span className="w-2 h-2 bg-[var(--color-steel-light)] rounded-full" />
               <span className="text-[11px] font-semibold uppercase tracking-widest text-[var(--color-steel-light)]">Offline</span>
             </div>
           )}
-        </header>
+        </div>
 
         {/* Radar Visual */}
         <div className="relative w-72 h-72 mx-auto mb-12">
@@ -609,9 +606,9 @@ export default function CampusRadarPage() {
         )}
 
         {/* Section header */}
-        <div className="mb-4">
-          <h3 className="font-serif text-xl text-[var(--color-text-header)] mb-1">Nearby Professionals</h3>
-          <p className="text-[13px] text-[var(--color-text-secondary)]">{matches.length} match{matches.length !== 1 ? 'es' : ''} found</p>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="section-label">Nearby Professionals</h3>
+          <span className="text-[12px] font-semibold text-[var(--color-primary)]">{matches.length} Active</span>
         </div>
 
         {/* Match list */}
@@ -687,9 +684,14 @@ export default function CampusRadarPage() {
                       )}
                     </div>
 
-                    {/* Distance + action */}
-                    <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                      <span className="text-[12px] font-semibold text-[var(--color-primary)]">{match.distance_m}m</span>
+                    {/* Distance + match % + action */}
+                    <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[12px] font-semibold text-[var(--color-primary)]">{match.distance_m}m</span>
+                        <span className="text-[11px] font-bold text-[var(--color-accent)] bg-[var(--color-accent)]/10 px-2 py-0.5 rounded-full">
+                          {userProfile?.interests ? Math.round((match.overlap.length / userProfile.interests.length) * 100) : 0}%
+                        </span>
+                      </div>
                       {isRevealed ? (
                         <Link
                           to={`/chat/${match.id}`}
@@ -700,7 +702,7 @@ export default function CampusRadarPage() {
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
                         </Link>
                       ) : status === 'pending_sent' ? (
-                        <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-accent)] bg-[var(--color-accent)]/10 px-2.5 py-1 rounded-full">Sent</span>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-primary)]">Awaiting Reply</span>
                       ) : status === 'pending_received' ? (
                         <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-error)] bg-[var(--color-error)]/8 px-2.5 py-1 rounded-full animate-gentle-pulse">Respond</span>
                       ) : (

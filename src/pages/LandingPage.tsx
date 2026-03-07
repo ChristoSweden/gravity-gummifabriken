@@ -66,17 +66,23 @@ export default function LandingPage() {
           />
         </div>
 
-        {/* Logo */}
+        {/* Logo — circular frame with copper ring, matching brand deck */}
         <div
           className="relative mb-12 animate-fade-in"
           style={{ animationDelay: '0.1s' }}
         >
-          <div className="absolute -inset-6 rounded-full bg-gradient-to-b from-[var(--color-primary)]/10 to-transparent blur-2xl" />
-          <img
-            src={logoUrl}
-            alt="Gravity"
-            className="relative w-36 h-36 sm:w-44 sm:h-44 object-contain drop-shadow-[0_20px_60px_rgba(184,115,51,0.35)]"
-          />
+          {/* Ambient glow behind frame */}
+          <div className="absolute -inset-10 rounded-full bg-[var(--color-primary)]/[0.08] blur-3xl" />
+          {/* Copper ring frame */}
+          <div className="relative w-40 h-40 sm:w-52 sm:h-52 rounded-full p-[3px] bg-gradient-to-b from-[var(--color-primary-light)] via-[var(--color-primary)] to-[var(--color-primary-dark)] shadow-[0_20px_60px_rgba(184,115,51,0.3)]">
+            <div className="w-full h-full rounded-full overflow-hidden bg-[#1a1612]">
+              <img
+                src={logoUrl}
+                alt="Gravity"
+                className="w-full h-full object-cover scale-125"
+              />
+            </div>
+          </div>
         </div>
 
         {/* Headline */}
