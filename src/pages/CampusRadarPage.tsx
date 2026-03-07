@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import logoUrl from '../assets/logo.png';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabaseService';
@@ -59,6 +59,7 @@ function BlurredAvatar({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
 
 export default function CampusRadarPage() {
   const { user, isDemo } = useAuth();
+  const navigate = useNavigate();
   const [userProfile, setUserProfile] = useState<Profile | null>(null);
   const [matches, setMatches] = useState<MatchProfile[]>([]);
   const [connectionStatuses, setConnectionStatuses] = useState<ConnectionStatus>({});
@@ -380,17 +381,18 @@ export default function CampusRadarPage() {
 
   const handleAcceptConnection = async (connectionId: string) => {
     setUpdatingId(connectionId);
+    const requesterId = pendingReviewRequest?.id;
     if (isDemo) {
       acceptDemoConnection(connectionId);
       setPendingReviewRequest(null);
       setUpdatingId(null);
-      await fetchData();
+      if (requesterId) navigate(`/chat/${requesterId}`);
       return;
     }
     await supabase.from('connections').update({ status: 'accepted' }).eq('id', connectionId);
     setPendingReviewRequest(null);
     setUpdatingId(null);
-    await fetchData();
+    if (requesterId) navigate(`/chat/${requesterId}`);
   };
 
   const handleDeclineConnection = async (connectionId: string) => {
