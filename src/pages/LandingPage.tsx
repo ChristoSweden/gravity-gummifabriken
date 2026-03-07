@@ -14,26 +14,21 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-[var(--color-bg-warm)] flex flex-col items-center justify-center px-6 py-12">
-      {/* Hero Visual */}
-      <div className="mb-14 relative">
-        {/* Outer ring */}
-        <div className="w-52 h-52 rounded-full border border-[var(--color-sand)] flex items-center justify-center relative">
-          {/* Pulse ring */}
-          <div className="absolute inset-0 rounded-full border border-[var(--color-primary)]/20 animate-radar-pulse" />
-          {/* Inner ball */}
-          <div className="w-24 h-24 rounded-full bg-[var(--color-primary)] shadow-[0_8px_32px_rgba(184,115,51,0.35)] flex items-center justify-center">
-            <span className="text-white font-serif text-[9px] tracking-[0.35em] font-bold uppercase select-none">
-              {APP_CONFIG.APP_NAME}
-            </span>
-          </div>
-        </div>
+      {/* Logo */}
+      <div className="mb-10 relative flex items-center justify-center">
+        <div className="absolute w-52 h-52 rounded-full border border-[var(--color-primary)]/15 animate-radar-pulse" />
+        <img
+          src="/logo.png"
+          alt="Gravity"
+          className="w-40 h-40 rounded-full object-cover shadow-[0_16px_48px_rgba(184,115,51,0.35)]"
+        />
       </div>
 
       {/* Branding */}
       <h1 className="font-serif text-5xl sm:text-6xl text-[var(--color-text-header)] tracking-tight mb-3">
         {APP_CONFIG.APP_NAME}.
       </h1>
-      <p className="font-serif italic text-lg text-[var(--color-primary)] mb-14 opacity-90">
+      <p className="font-serif italic text-lg text-[var(--color-primary)] mb-16 opacity-90">
         Proximity creates opportunity.
       </p>
 

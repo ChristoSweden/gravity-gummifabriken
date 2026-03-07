@@ -196,59 +196,83 @@ export default function CampusRadarPage() {
         </header>
 
         {/* Radar Visual */}
-        <div className="relative w-64 h-64 mx-auto mb-12" style={{ perspective: '800px' }}>
-          <div className="absolute inset-0 flex items-center justify-center" style={{ transformStyle: 'preserve-3d' }}>
-            {/* Radar disc */}
-            <div
-              className="relative w-60 h-60 rounded-full border border-[var(--color-sand)]/40"
-              style={{
-                transform: 'rotateX(55deg)',
-                background: 'radial-gradient(circle, rgba(184,115,51,0.04) 0%, transparent 70%)',
-              }}
-            >
-              {/* Rings */}
-              {[1, 0.72, 0.44].map((scale, i) => (
-                <div
-                  key={i}
-                  className="absolute inset-0 border border-[var(--color-sand)]/30 rounded-full"
-                  style={{ transform: `scale(${scale})` }}
-                />
-              ))}
+        <div className="relative w-72 h-72 mx-auto mb-12">
+          {/* Radar disc — flat top-down view */}
+          <div
+            className="absolute inset-0 rounded-full border border-[var(--color-sand)]"
+            style={{
+              background: 'radial-gradient(circle, rgba(184,115,51,0.06) 0%, rgba(184,115,51,0.02) 40%, transparent 70%)',
+            }}
+          >
+            {/* Concentric rings */}
+            {[0.72, 0.44].map((scale, i) => (
+              <div
+                key={i}
+                className="absolute inset-0 border border-[var(--color-sand)]/40 rounded-full"
+                style={{ transform: `scale(${scale})` }}
+              />
+            ))}
 
-              {/* Sweep */}
-              <div className="absolute inset-0 rounded-full animate-radar-sweep-3d origin-center pointer-events-none z-10">
-                <div
-                  className="absolute inset-0 rounded-full"
-                  style={{ background: 'conic-gradient(from 0deg, rgba(184,115,51,0.15) 0deg, transparent 50deg)', transform: 'rotate(-50deg)' }}
-                />
-                <div className="absolute top-0 left-1/2 -ml-px w-0.5 h-1/2 bg-[var(--color-primary)]/60" />
-              </div>
+            {/* Crosshairs */}
+            <div className="absolute top-0 bottom-0 left-1/2 -translate-x-px w-px bg-[var(--color-sand)]/30" />
+            <div className="absolute left-0 right-0 top-1/2 -translate-y-px h-px bg-[var(--color-sand)]/30" />
 
-              {/* Pulse */}
-              <div className="absolute inset-0 rounded-full border border-[var(--color-primary)]/20 animate-radar-pulse" />
+            {/* Sweep arm */}
+            <div className="absolute inset-0 rounded-full animate-scan origin-center pointer-events-none z-10">
+              <div
+                className="absolute inset-0 rounded-full"
+                style={{
+                  background: 'conic-gradient(from 0deg, rgba(184,115,51,0.18) 0deg, transparent 45deg)',
+                }}
+              />
+              <div className="absolute top-0 left-1/2 -translate-x-px w-0.5 h-1/2 bg-[var(--color-primary)]/50 origin-bottom" />
             </div>
 
-            {/* Center dot */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 bg-[var(--color-primary)] rounded-full shadow-[0_4px_12px_rgba(184,115,51,0.3)] border-2 border-white z-30" />
-
-            {/* Match pips */}
-            {matches.slice(0, 6).map((match, idx) => {
-              const angle = [25, 105, 165, 225, 295, 345][idx] || idx * 60;
-              const dist = [38, 60, 80, 100, 115, 130][idx] || 60 + idx * 10;
-              return (
-                <button
-                  key={match.id}
-                  className="absolute w-3.5 h-3.5 bg-[var(--color-primary)] rounded-full animate-pip z-20 shadow-pip border-2 border-white cursor-pointer hover:scale-150 transition-transform"
-                  style={{
-                    transform: `translate(-50%, -50%) translate3d(${Math.cos((angle * Math.PI) / 180) * (dist * 0.85)}px, ${Math.sin((angle * Math.PI) / 180) * (dist * 0.42)}px, 0px)`,
-                    animationDelay: `${idx * 0.5}s`,
-                  }}
-                  onClick={() => setSelectedMatch(match)}
-                  aria-label={`Match: ${match.full_name}`}
-                />
-              );
-            })}
+            {/* Pulse ring */}
+            <div className="absolute inset-0 rounded-full border border-[var(--color-primary)]/20 animate-radar-pulse" />
           </div>
+
+          {/* Center — logo */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30">
+            <img src="/logo.png" alt="Gravity" className="w-10 h-10 rounded-full object-cover shadow-[0_0_20px_rgba(184,115,51,0.4)] border-2 border-white" />
+          </div>
+
+          {/* Match pips */}
+          {matches.slice(0, 6).map((match, idx) => {
+            const angle = [30, 100, 170, 220, 290, 350][idx] || idx * 60;
+            const dist = [42, 68, 90, 56, 80, 105][idx] || 60 + idx * 10;
+            const rad = (angle * Math.PI) / 180;
+            const x = Math.cos(rad) * dist;
+            const y = Math.sin(rad) * dist;
+            const status = connectionStatuses[match.id] || 'none';
+            const pipColor = status === 'accepted'
+              ? 'bg-[var(--color-success)]'
+              : status === 'pending_sent'
+              ? 'bg-[var(--color-accent)]'
+              : 'bg-[var(--color-primary)]';
+
+            return (
+              <button
+                key={match.id}
+                className={`absolute top-1/2 left-1/2 z-20 cursor-pointer transition-transform hover:scale-[1.6] group`}
+                style={{
+                  transform: `translate(-50%, -50%) translate(${x}px, ${y}px)`,
+                }}
+                onClick={() => setSelectedMatch(match)}
+                aria-label={`Match: ${match.full_name}`}
+              >
+                <div className={`w-4 h-4 ${pipColor} rounded-full border-2 border-white shadow-pip animate-pip`}
+                  style={{ animationDelay: `${idx * 0.4}s` }}
+                />
+                {/* Tooltip on hover */}
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                  <div className="bg-[var(--color-text-header)] text-white text-[10px] font-semibold px-2.5 py-1 rounded-lg whitespace-nowrap shadow-lg">
+                    {match.full_name.split(' ')[0]}
+                  </div>
+                </div>
+              </button>
+            );
+          })}
         </div>
 
         {/* User interests */}

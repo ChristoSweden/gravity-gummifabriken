@@ -27,9 +27,10 @@ export default function Navbar() {
       <div className="max-w-2xl mx-auto flex justify-between items-center">
         <Link
           to={user ? '/radar' : '/'}
-          className="font-serif text-xl text-[var(--color-text-header)] hover:text-[var(--color-primary)] transition-colors"
+          className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
         >
-          {APP_CONFIG.APP_NAME}.
+          <img src="/logo.png" alt="Gravity" className="w-8 h-8 rounded-full object-cover" />
+          <span className="font-serif text-xl text-[var(--color-text-header)]">{APP_CONFIG.APP_NAME}.</span>
         </Link>
 
         <div className="flex items-center gap-6">
