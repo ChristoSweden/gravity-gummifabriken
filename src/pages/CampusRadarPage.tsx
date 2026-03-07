@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import logoUrl from '../assets/logo.png';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabaseService';
 import { MOCK_USERS, getDemoProfile, isConnectedInDemo, addDemoConnection, addDemoMessage } from '../services/mockData';
@@ -234,7 +235,7 @@ export default function CampusRadarPage() {
 
           {/* Center — logo */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30">
-            <img src="/logo.png" alt="Gravity" className="w-10 h-10 rounded-full object-cover shadow-[0_0_20px_rgba(184,115,51,0.4)] border-2 border-white" />
+            <img src={logoUrl} alt="Gravity" className="w-10 h-10 rounded-full object-cover shadow-[0_0_20px_rgba(184,115,51,0.4)] border-2 border-white" />
           </div>
 
           {/* Match pips */}

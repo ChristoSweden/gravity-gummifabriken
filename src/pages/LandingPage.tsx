@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { APP_CONFIG } from '../config/appConfig';
+import logoUrl from '../assets/logo.png';
 
 export default function LandingPage() {
   const { enterDemoMode } = useAuth();
@@ -18,9 +19,9 @@ export default function LandingPage() {
       <div className="mb-10 relative flex items-center justify-center">
         <div className="absolute w-52 h-52 rounded-full border border-[var(--color-primary)]/15 animate-radar-pulse" />
         <img
-          src="/logo.png"
+          src={logoUrl}
           alt="Gravity"
-          className="w-40 h-40 rounded-full object-cover shadow-[0_16px_48px_rgba(184,115,51,0.35)]"
+          className="w-44 h-44 object-contain drop-shadow-[0_16px_48px_rgba(184,115,51,0.45)]"
         />
       </div>
 

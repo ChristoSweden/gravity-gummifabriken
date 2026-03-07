@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { APP_CONFIG } from '../config/appConfig';
+import logoUrl from '../assets/logo.png';
 
 export default function Navbar() {
   const { user } = useAuth();
@@ -29,7 +30,7 @@ export default function Navbar() {
           to={user ? '/radar' : '/'}
           className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
         >
-          <img src="/logo.png" alt="Gravity" className="w-8 h-8 rounded-full object-cover" />
+          <img src={logoUrl} alt="Gravity" className="w-8 h-8 rounded-full object-cover" />
           <span className="font-serif text-xl text-[var(--color-text-header)]">{APP_CONFIG.APP_NAME}.</span>
         </Link>
 

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabaseService';
 import { useAuth } from '../contexts/AuthContext';
 import { APP_CONFIG } from '../config/appConfig';
+import logoUrl from '../assets/logo.png';
 import { motion } from 'motion/react';
 
 export default function LoginPage() {
@@ -49,7 +50,7 @@ export default function LoginPage() {
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
         </button>
         <div className="flex items-center gap-2">
-          <img src="/logo.png" alt="Gravity" className="w-7 h-7 rounded-full object-cover" />
+          <img src={logoUrl} alt="Gravity" className="w-7 h-7 rounded-full object-cover" />
           <span className="font-serif text-2xl text-[var(--color-text-header)]">{APP_CONFIG.APP_NAME}.</span>
         </div>
         <div className="w-10" />
