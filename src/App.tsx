@@ -49,7 +49,8 @@ function AppLayout() {
   const { user } = useAuth();
   const isOnboarding = location.pathname === '/onboarding';
   const isLogin = location.pathname === '/login';
-  const showNavbar = !isLanding && !isOnboarding && !isLogin && !!user;
+  const isChatDetail = location.pathname.startsWith('/chat/');
+  const showNavbar = !isLanding && !isOnboarding && !isLogin && !isChatDetail && !!user;
 
   return (
     <div className="min-h-screen bg-[var(--color-bg-warm)] font-sans text-[var(--color-text-primary)] overflow-x-hidden">
