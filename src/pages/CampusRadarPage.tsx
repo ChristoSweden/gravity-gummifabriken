@@ -72,6 +72,19 @@ export default function CampusRadarPage() {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [presenceStatus, setPresenceStatus] = useState<PresenceStatus>('checking');
   const presenceChecked = useRef(false);
+  const pendingDelayTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Delayed reveal: stages a pending request and shows it after 10s
+  const stagePendingRequest = React.useCallback((req: (Profile & { connectionId: string; message?: string }) | null) => {
+    if (pendingDelayTimer.current) clearTimeout(pendingDelayTimer.current);
+    if (!req) {
+      setPendingReviewRequest(null);
+      return;
+    }
+    pendingDelayTimer.current = setTimeout(() => {
+      setPendingReviewRequest(req);
+    }, 10000);
+  }, []);
   const [activityFeed, setActivityFeed] = useState<{ id: string; text: string; time: string; type: 'join' | 'connect' }[]>([]);
 
   /** Plan A: GPS geofence check. Updates is_present in DB, returns true if at venue. */
@@ -143,7 +156,7 @@ export default function CampusRadarPage() {
       others.forEach((p) => { statuses[p.id] = isConnectedInDemo(p.id); });
       setConnectionStatuses(statuses);
 
-      // Check for pending received requests in demo mode
+      // Check for pending received requests in demo mode (delayed reveal)
       const pendingReceivedEntry = Object.entries(statuses).find(([, s]) => s === 'pending_received');
       if (pendingReceivedEntry) {
         const [pendingUserId] = pendingReceivedEntry;
@@ -151,10 +164,10 @@ export default function CampusRadarPage() {
         const demoConns = getDemoConnections();
         const demoConn = demoConns.find(c => c.requester_id === pendingUserId && c.recipient_id === me.id);
         if (requesterProfile && demoConn) {
-          setPendingReviewRequest({ ...requesterProfile, connectionId: demoConn.id });
+          stagePendingRequest({ ...requesterProfile, connectionId: demoConn.id });
         }
       } else {
-        setPendingReviewRequest(null);
+        stagePendingRequest(null);
       }
 
       setLoading(false);
@@ -221,14 +234,14 @@ export default function CampusRadarPage() {
         .maybeSingle();
 
       if (profile) {
-        setPendingReviewRequest({
+        stagePendingRequest({
           ...profile,
           connectionId: firstPending.id,
           message: lastMsg?.content
         });
       }
     } else {
-      setPendingReviewRequest(null);
+      stagePendingRequest(null);
     }
 
     // Activity feed: recent check-ins and connections (last 2 hours)
@@ -267,7 +280,14 @@ export default function CampusRadarPage() {
     }
 
     setLoading(false);
-  }, [user, isDemo]);
+  }, [user, isDemo, stagePendingRequest]);
+
+  // Clean up delay timer on unmount
+  useEffect(() => {
+    return () => {
+      if (pendingDelayTimer.current) clearTimeout(pendingDelayTimer.current);
+    };
+  }, []);
 
   useEffect(() => {
     // Run GPS presence check once on mount, then fetch data.
