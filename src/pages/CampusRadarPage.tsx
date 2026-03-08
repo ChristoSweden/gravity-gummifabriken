@@ -456,12 +456,20 @@ export default function CampusRadarPage() {
     };
   }, []);
 
+  // Safety: force loading off after 5s to prevent infinite skeleton
+  useEffect(() => {
+    const safetyTimer = setTimeout(() => setLoading(false), 5000);
+    return () => clearTimeout(safetyTimer);
+  }, []);
+
   useEffect(() => {
     // Run GPS presence check once on mount, then fetch data.
     // presenceChecked ref prevents re-running on every re-render.
     if (!presenceChecked.current) {
       presenceChecked.current = true;
-      checkPresence().then(() => fetchData());
+      // Run GPS check and data fetch in parallel — don't let GPS block loading
+      checkPresence();
+      fetchData();
     } else {
       fetchData();
     }
