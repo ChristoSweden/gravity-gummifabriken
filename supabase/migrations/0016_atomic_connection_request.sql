@@ -4,6 +4,7 @@
 --   optional icebreaker message atomically in one transaction.
 -- ============================================================
 
+DROP FUNCTION IF EXISTS public.send_connection_request(UUID, TEXT);
 CREATE OR REPLACE FUNCTION public.send_connection_request(
   p_recipient_id UUID,
   p_message TEXT DEFAULT NULL

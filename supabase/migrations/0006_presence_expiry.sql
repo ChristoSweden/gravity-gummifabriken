@@ -6,6 +6,7 @@
 -- ============================================================
 
 -- 1. PRESENCE EXPIRY FUNCTION ────────────────────────────────
+DROP FUNCTION IF EXISTS public.expire_stale_presence();
 CREATE OR REPLACE FUNCTION public.expire_stale_presence()
 RETURNS INTEGER
 LANGUAGE plpgsql

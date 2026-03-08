@@ -24,10 +24,12 @@ CREATE TABLE IF NOT EXISTS public.invited_emails (
 ALTER TABLE public.invited_emails ENABLE ROW LEVEL SECURITY;
 
 -- Only authenticated users (admins) can view/manage invites
+DROP POLICY IF EXISTS "Authenticated users can view invites" ON public.invited_emails;
 CREATE POLICY "Authenticated users can view invites"
   ON public.invited_emails FOR SELECT
   USING (auth.role() = 'authenticated');
 
+DROP POLICY IF EXISTS "Authenticated users can insert invites" ON public.invited_emails;
 CREATE POLICY "Authenticated users can insert invites"
   ON public.invited_emails FOR INSERT
   WITH CHECK (auth.role() = 'authenticated');

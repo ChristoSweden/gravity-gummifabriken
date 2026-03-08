@@ -4,6 +4,7 @@
 -- ============================================================
 
 -- Recipients can mark messages as read (update read_at)
+DROP POLICY IF EXISTS "Recipients can update messages" ON public.messages;
 CREATE POLICY "Recipients can update messages"
   ON public.messages FOR UPDATE
   USING (auth.uid() = recipient_id);

@@ -14,14 +14,17 @@ CREATE TABLE IF NOT EXISTS public.blocked_users (
 
 ALTER TABLE public.blocked_users ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their own blocks" ON public.blocked_users;
 CREATE POLICY "Users can view their own blocks"
   ON public.blocked_users FOR SELECT
   USING (auth.uid() = blocker_id);
 
+DROP POLICY IF EXISTS "Users can block others" ON public.blocked_users;
 CREATE POLICY "Users can block others"
   ON public.blocked_users FOR INSERT
   WITH CHECK (auth.uid() = blocker_id);
 
+DROP POLICY IF EXISTS "Users can unblock" ON public.blocked_users;
 CREATE POLICY "Users can unblock"
   ON public.blocked_users FOR DELETE
   USING (auth.uid() = blocker_id);
@@ -38,10 +41,12 @@ CREATE TABLE IF NOT EXISTS public.reports (
 
 ALTER TABLE public.reports ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can create reports" ON public.reports;
 CREATE POLICY "Users can create reports"
   ON public.reports FOR INSERT
   WITH CHECK (auth.uid() = reporter_id);
 
+DROP POLICY IF EXISTS "Users can view own reports" ON public.reports;
 CREATE POLICY "Users can view own reports"
   ON public.reports FOR SELECT
   USING (auth.uid() = reporter_id);

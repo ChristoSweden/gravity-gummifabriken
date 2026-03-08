@@ -5,6 +5,7 @@
 --   by only updating if the new timestamp is more recent.
 -- ============================================================
 
+DROP FUNCTION IF EXISTS public.update_presence(BOOLEAN, TIMESTAMPTZ);
 CREATE OR REPLACE FUNCTION public.update_presence(
   p_is_present BOOLEAN,
   p_last_seen_at TIMESTAMPTZ DEFAULT NULL
