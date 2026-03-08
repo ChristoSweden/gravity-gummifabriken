@@ -785,13 +785,13 @@ export default function CampusRadarPage() {
               className="mb-4"
             >
               <div className="bg-[#1A1714] border border-[#2A2522] rounded-2xl px-4 py-3.5 flex items-center gap-3">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-steel-light)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" /></svg>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" /></svg>
                 <p className="text-[13px] text-[#A09890] flex-1">
-                  You're not at {APP_CONFIG.LOCATION_NAME} right now. Radar shows who's present.
+                  Tap to appear on the radar.
                 </p>
                 <button
                   onClick={handleManualCheckIn}
-                  className="flex-shrink-0 text-[12px] font-bold text-[var(--color-primary-light)] px-3 py-1.5 rounded-full border border-[var(--color-primary)]/30 hover:bg-[var(--color-primary)]/10 transition-colors"
+                  className="flex-shrink-0 text-[12px] font-bold text-white bg-[var(--color-primary)] px-4 py-2 rounded-full hover:bg-[var(--color-primary-dark)] transition-colors"
                 >
                   Check in
                 </button>

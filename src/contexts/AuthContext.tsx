@@ -110,11 +110,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           if (raw) {
             try {
               const pending = JSON.parse(raw);
+              const now = new Date().toISOString();
               await supabase.from('profiles').upsert({
                 id: session.user.id,
                 ...pending,
-                consent_given_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
+                is_present: true,
+                last_seen_at: now,
+                consent_given_at: now,
+                updated_at: now,
               });
               setNeedsOnboarding(false);
             } catch (err) {
@@ -130,6 +133,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               .eq('id', session.user.id)
               .maybeSingle();
             setNeedsOnboarding(!data || !data.interests || data.interests.length < 3);
+
+            // Auto-check-in on login so user immediately appears on radar
+            if (data && data.interests && data.interests.length >= 3) {
+              const now = new Date().toISOString();
+              supabase.rpc('update_presence', { p_is_present: true, p_last_seen_at: now }).catch(() => {});
+            }
           }
         }
       },
