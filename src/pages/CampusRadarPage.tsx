@@ -828,51 +828,52 @@ export default function CampusRadarPage() {
         </div>
 
         {/* Radar Visual */}
-        <div className="relative w-80 h-80 mx-auto mb-12">
-          {/* Ambient copper glow behind radar */}
+        <div className="relative w-[340px] h-[340px] mx-auto mb-6">
+          {/* Ambient glow */}
           <div
-            className="absolute -inset-8 pointer-events-none"
-            style={{ background: 'radial-gradient(circle, rgba(184,115,51,0.12) 0%, rgba(139,90,43,0.04) 50%, transparent 70%)' }}
+            className="absolute -inset-12 pointer-events-none"
+            style={{ background: 'radial-gradient(circle, rgba(184,115,51,0.15) 0%, rgba(139,90,43,0.05) 40%, transparent 70%)' }}
           />
 
+          {/* Radar disc */}
           <div
-            className="absolute inset-0 rounded-full border border-[var(--color-primary)]/30"
-            style={{ background: 'radial-gradient(circle, rgba(184,115,51,0.08) 0%, rgba(13,11,9,0.9) 60%, #0D0B09 100%)' }}
+            className="absolute inset-0 rounded-full border border-[var(--color-primary)]/25"
+            style={{ background: 'radial-gradient(circle, rgba(184,115,51,0.06) 0%, rgba(26,23,20,0.95) 50%, #0D0B09 100%)' }}
           >
             {/* Concentric rings */}
             {[0.78, 0.56, 0.34].map((scale, i) => (
-              <div key={i} className="absolute inset-0 border border-[var(--color-primary)]/15 rounded-full" style={{ transform: `scale(${scale})` }} />
+              <div key={i} className="absolute inset-0 border border-[var(--color-primary)]/12 rounded-full" style={{ transform: `scale(${scale})` }} />
             ))}
-            {/* Cross-hair grid lines */}
-            <div className="absolute top-0 bottom-0 left-1/2 -translate-x-px w-px bg-[var(--color-primary)]/10" />
-            <div className="absolute left-0 right-0 top-1/2 -translate-y-px h-px bg-[var(--color-primary)]/10" />
-            {/* Diagonal grid lines */}
+            {/* Cross-hair grid */}
+            <div className="absolute top-0 bottom-0 left-1/2 -translate-x-px w-px bg-[var(--color-primary)]/8" />
+            <div className="absolute left-0 right-0 top-1/2 -translate-y-px h-px bg-[var(--color-primary)]/8" />
+            {/* Diagonal grid */}
             <div className="absolute inset-0 rounded-full overflow-hidden">
-              <div className="absolute top-1/2 left-1/2 w-[141%] h-px bg-[var(--color-primary)]/8 origin-left" style={{ transform: 'translate(-50%, -50%) rotate(45deg)' }} />
-              <div className="absolute top-1/2 left-1/2 w-[141%] h-px bg-[var(--color-primary)]/8 origin-left" style={{ transform: 'translate(-50%, -50%) rotate(-45deg)' }} />
+              <div className="absolute top-1/2 left-1/2 w-[141%] h-px bg-[var(--color-primary)]/6 origin-left" style={{ transform: 'translate(-50%, -50%) rotate(45deg)' }} />
+              <div className="absolute top-1/2 left-1/2 w-[141%] h-px bg-[var(--color-primary)]/6 origin-left" style={{ transform: 'translate(-50%, -50%) rotate(-45deg)' }} />
             </div>
-            {/* Rotating sweep beam */}
+            {/* Sweep beam */}
             <div className="absolute inset-0 rounded-full animate-scan origin-center pointer-events-none z-10">
-              <div className="absolute inset-0 rounded-full" style={{ background: 'conic-gradient(from 0deg, rgba(212,175,55,0.28) 0deg, rgba(184,115,51,0.12) 20deg, transparent 55deg)' }} />
-              <div className="absolute top-0 left-1/2 -translate-x-px w-0.5 h-1/2 origin-bottom" style={{ background: 'linear-gradient(to top, rgba(212,175,55,0.6), transparent)' }} />
+              <div className="absolute inset-0 rounded-full" style={{ background: 'conic-gradient(from 0deg, rgba(212,175,55,0.25) 0deg, rgba(184,115,51,0.10) 20deg, transparent 50deg)' }} />
+              <div className="absolute top-0 left-1/2 -translate-x-px w-0.5 h-1/2 origin-bottom" style={{ background: 'linear-gradient(to top, rgba(212,175,55,0.5), transparent)' }} />
             </div>
             {/* Pulse ring */}
-            <div className="absolute inset-0 rounded-full border border-[var(--color-primary)]/25 animate-radar-pulse" />
+            <div className="absolute inset-0 rounded-full border border-[var(--color-primary)]/20 animate-radar-pulse" />
           </div>
 
           {/* Center logo */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30">
             <div className="relative">
-              <div className="absolute -inset-3 rounded-full blur-xl bg-[var(--color-primary)]/30" />
-              <img src={logoUrl} alt="Gravity" className="relative w-12 h-12 rounded-full object-cover shadow-[0_0_24px_rgba(184,115,51,0.5)] border-2 border-[var(--color-primary)]/60" />
+              <div className="absolute -inset-4 rounded-full blur-2xl bg-[var(--color-primary)]/25" />
+              <img src={logoUrl} alt="Gravity" className="relative w-14 h-14 rounded-full object-cover shadow-[0_0_30px_rgba(184,115,51,0.5)] border-2 border-[var(--color-primary)]/50" />
             </div>
           </div>
 
-          {/* Pips */}
+          {/* Pips — larger, glassy */}
           {matches.slice(0, maxPips).map((match, idx) => {
             const { angle, r } = pipLayout[idx] || { angle: idx * 60, r: 60 };
             const rad = (angle * Math.PI) / 180;
-            const scaledR = r * 1.1;
+            const scaledR = r * 1.15;
             const x = Math.cos(rad) * scaledR;
             const y = Math.sin(rad) * scaledR;
             const status = connectionStatuses[match.id] || 'none';
@@ -883,7 +884,7 @@ export default function CampusRadarPage() {
               ? 'border-[var(--color-success)]'
               : status === 'pending_sent' || status === 'pending_received'
                 ? 'border-[var(--color-accent)]'
-                : hasOverlap ? 'border-[var(--color-primary)]/50' : 'border-[var(--color-steel)]/60';
+                : hasOverlap ? 'border-[var(--color-primary)]/40' : 'border-[#3A3532]';
 
             return (
               <button
@@ -894,18 +895,18 @@ export default function CampusRadarPage() {
                 aria-label={isRevealed ? `Match: ${match.full_name}` : `Match: ${match.profession || 'Professional'}`}
               >
                 <div className="relative">
-                  <div className={`w-9 h-9 rounded-full overflow-hidden border-2 ${borderColor} shadow-[0_0_12px_rgba(184,115,51,0.3)] transition-transform group-hover:scale-125`}>
+                  <div className={`w-11 h-11 rounded-full overflow-hidden border-2 ${borderColor} shadow-[0_0_16px_rgba(184,115,51,0.2)] transition-transform group-hover:scale-110`}>
                     {isRevealed ? (
                       match.avatar_url ? (
                         <img src={match.avatar_url} alt={match.full_name} className="w-full h-full object-cover" />
                       ) : (
-                        <div className="w-full h-full bg-[var(--color-primary)] flex items-center justify-center text-white text-xs font-serif font-bold">
+                        <div className="w-full h-full bg-[var(--color-primary)] flex items-center justify-center text-white text-sm font-serif font-bold">
                           {match.full_name.charAt(0)}
                         </div>
                       )
                     ) : (
-                      <div className="w-full h-full bg-[#1A1714] flex items-center justify-center">
-                        <span className="text-[11px] font-serif font-bold text-[var(--color-accent)]/70">G</span>
+                      <div className="w-full h-full bg-[#1A1714]/90 backdrop-blur-sm flex items-center justify-center">
+                        <span className="text-sm font-serif font-bold text-[var(--color-primary)]/60">G</span>
                       </div>
                     )}
                   </div>
@@ -913,8 +914,8 @@ export default function CampusRadarPage() {
                   <span className={`absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-[#0D0B09] ${freshness.dotClass}`} />
                 </div>
                 {/* Proximity label */}
-                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-0.5 whitespace-nowrap pointer-events-none">
-                  <span className="text-[9px] font-semibold text-[var(--color-steel-light)]">{proximityLabel(match.proximity)}</span>
+                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 whitespace-nowrap pointer-events-none">
+                  <span className="text-[9px] font-medium text-[#7A7572]">{proximityLabel(match.proximity)}</span>
                 </div>
                 {/* Tooltip */}
                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-8 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
@@ -937,35 +938,40 @@ export default function CampusRadarPage() {
           )}
         </div>
 
+        {/* ── Section header ── */}
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#7A7572]">
+            {eventName ? 'Event Attendees' : 'Nearby Professionals'}
+          </h3>
+          <span className="text-[12px] font-semibold text-[var(--color-primary-light)]">{matches.length} Active</span>
+        </div>
+
         {/* ── Scan Summary Card ── */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="relative -mt-6 mb-8 bg-[#1A1714] border border-[#2A2522] rounded-3xl p-5 shadow-lg overflow-hidden"
+          className="relative mb-8 rounded-3xl overflow-hidden"
+          style={{
+            background: 'linear-gradient(135deg, #1E1B17 0%, #15120E 40%, #1A1714 100%)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(184,115,51,0.08)',
+          }}
         >
-          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[var(--color-primary)]/40 to-transparent" />
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-[var(--color-primary)]/10 flex items-center justify-center flex-shrink-0">
+          <div className="relative p-6 text-center">
+            {/* G icon */}
+            <div className="w-12 h-12 rounded-full border border-[var(--color-primary)]/25 bg-[var(--color-primary)]/8 flex items-center justify-center mx-auto mb-3">
               <span className="text-lg font-serif font-bold text-[var(--color-primary)]">G</span>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xl font-bold text-white">
-                {matches.length} Active
-              </p>
-              <p className="text-[13px] text-[#A09890]">
-                {matches.length > 0
+            <p className="text-3xl font-bold text-[var(--color-primary-light)] mb-1">
+              {matches.length} Active
+            </p>
+            <p className="text-[13px] text-[#7A7572] leading-relaxed">
+              {matches.length > 0
+                ? 'Scanning local connections...\nFinding matches.'
+                : presenceStatus === 'present' || presenceStatus === 'manual' || isDemo
                   ? 'Scanning local connections...\nFinding matches.'
-                  : presenceStatus === 'present' || presenceStatus === 'manual' || isDemo
-                    ? 'Scanning local connections...\nFinding matches.'
-                    : `Head to ${APP_CONFIG.LOCATION_NAME} to start scanning.`}
-              </p>
-            </div>
-            <div className="flex-shrink-0">
-              {(presenceStatus === 'present' || presenceStatus === 'manual' || isDemo) && (
-                <div className="w-3 h-3 bg-[var(--color-success)] rounded-full animate-gentle-pulse" />
-              )}
-            </div>
+                  : `Head to ${APP_CONFIG.LOCATION_NAME} to start scanning.`}
+            </p>
           </div>
         </motion.div>
 
@@ -1003,14 +1009,6 @@ export default function CampusRadarPage() {
             </div>
           </div>
         )}
-
-        {/* Section header */}
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--color-steel-light)]">
-            {eventName ? 'Event Attendees' : 'Nearby Professionals'}
-          </h3>
-          <span className="text-[12px] font-semibold text-[var(--color-primary-light)]">{matches.length} Active</span>
-        </div>
 
         {/* Match list */}
         {matches.length === 0 ? (
