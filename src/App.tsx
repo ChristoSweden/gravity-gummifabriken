@@ -1,11 +1,11 @@
 import React, { Suspense, lazy, useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
-import LandingPage from './pages/LandingPage';
-import LoginPage from './pages/LoginPage';
-import OnboardingPage from './pages/OnboardingPage';
-import CampusRadarPage from './pages/CampusRadarPage';
 
+const LandingPage = lazy(() => import('./pages/LandingPage'));
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const OnboardingPage = lazy(() => import('./pages/OnboardingPage'));
+const CampusRadarPage = lazy(() => import('./pages/CampusRadarPage'));
 const ConnectionsPage = lazy(() => import('./pages/ConnectionsPage'));
 const ConversationsPage = lazy(() => import('./pages/ConversationsPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
@@ -38,9 +38,179 @@ function OfflineBanner() {
   );
 }
 
+/** iOS Share icon (box with arrow) */
+function ShareIcon({ className = '' }: { className?: string }) {
+  return (
+    <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+      <polyline points="16 6 12 2 8 6" />
+      <line x1="12" y1="2" x2="12" y2="15" />
+    </svg>
+  );
+}
+
+/** Plus-in-square icon for Add to Home Screen */
+function AddIcon({ className = '' }: { className?: string }) {
+  return (
+    <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <line x1="12" y1="8" x2="12" y2="16" />
+      <line x1="8" y1="12" x2="16" y2="12" />
+    </svg>
+  );
+}
+
+function IOSInstallGuide({ onDismiss }: { onDismiss: () => void }) {
+  const [step, setStep] = useState(0);
+
+  const steps = [
+    {
+      icon: <ShareIcon className="text-[var(--color-primary)]" />,
+      title: 'Tap the Share button',
+      description: 'Find the share icon at the bottom of Safari (box with an arrow pointing up).',
+      hint: 'If you don\'t see it, scroll up to reveal the Safari toolbar.',
+    },
+    {
+      icon: <AddIcon className="text-[var(--color-primary)]" />,
+      title: 'Tap "Add to Home Screen"',
+      description: 'Scroll down in the share menu until you see "Add to Home Screen".',
+      hint: 'It has a plus (+) icon next to it.',
+    },
+    {
+      icon: (
+        <svg className="text-[var(--color-primary)]" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M20 6L9 17l-5-5" />
+        </svg>
+      ),
+      title: 'Tap "Add"',
+      description: 'Confirm by tapping "Add" in the top-right corner. Gravity will appear on your home screen like a native app.',
+      hint: 'You\'ll get push notifications and the full app experience.',
+    },
+  ];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[300] flex items-end justify-center bg-black/50 backdrop-blur-sm"
+      onClick={onDismiss}
+    >
+      <motion.div
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+        className="w-full max-w-lg bg-[var(--color-bg-card)] rounded-t-3xl shadow-2xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between p-5 pb-2">
+          <h2 className="text-lg font-bold text-[var(--color-text-header)]">Install Gravity</h2>
+          <button
+            onClick={onDismiss}
+            className="w-8 h-8 rounded-full bg-[var(--color-sand-light)] flex items-center justify-center"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-steel)" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+          </button>
+        </div>
+
+        <p className="px-5 text-[13px] text-[var(--color-text-secondary)] mb-4">
+          Add Gravity to your home screen for the best experience — instant access, push notifications, and full-screen mode.
+        </p>
+
+        {/* Steps */}
+        <div className="px-5 pb-2">
+          {steps.map((s, i) => (
+            <motion.div
+              key={i}
+              initial={false}
+              animate={{ opacity: i <= step ? 1 : 0.4 }}
+              className={`flex gap-3 mb-4 ${i <= step ? '' : 'pointer-events-none'}`}
+              onClick={() => i <= step + 1 && setStep(Math.max(step, i))}
+            >
+              {/* Step number circle */}
+              <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 border-2 transition-colors ${
+                i < step
+                  ? 'bg-[var(--color-primary)] border-[var(--color-primary)]'
+                  : i === step
+                  ? 'border-[var(--color-primary)] bg-transparent'
+                  : 'border-[var(--color-sand)] bg-transparent'
+              }`}>
+                {i < step ? (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round"><path d="M20 6L9 17l-5-5" /></svg>
+                ) : (
+                  <span className={`text-sm font-bold ${i === step ? 'text-[var(--color-primary)]' : 'text-[var(--color-steel-light)]'}`}>{i + 1}</span>
+                )}
+              </div>
+              {/* Step content */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                  {s.icon}
+                  <p className="text-sm font-semibold text-[var(--color-text-header)]">{s.title}</p>
+                </div>
+                <p className="text-[12px] text-[var(--color-text-secondary)] leading-relaxed">{s.description}</p>
+                {i === step && (
+                  <motion.p
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-[11px] text-[var(--color-primary)] mt-1 font-medium"
+                  >
+                    {s.hint}
+                  </motion.p>
+                )}
+              </div>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Navigation */}
+        <div className="px-5 pb-6 flex gap-3">
+          {step < steps.length - 1 ? (
+            <>
+              <button
+                onClick={onDismiss}
+                className="flex-1 py-3 rounded-xl text-sm font-medium text-[var(--color-text-secondary)] bg-[var(--color-sand-light)]"
+              >
+                Maybe later
+              </button>
+              <button
+                onClick={() => setStep(step + 1)}
+                className="flex-1 py-3 rounded-xl text-sm font-semibold text-white bg-[var(--color-primary)]"
+              >
+                Next
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={onDismiss}
+              className="flex-1 py-3 rounded-xl text-sm font-semibold text-white bg-[var(--color-primary)]"
+            >
+              Got it!
+            </button>
+          )}
+        </div>
+
+        {/* Safari bottom bar indicator arrow */}
+        {step === 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3, repeat: Infinity, repeatType: 'reverse', duration: 0.8 }}
+            className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[var(--color-primary)]"
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 5v14M19 12l-7 7-7-7" /></svg>
+          </motion.div>
+        )}
+      </motion.div>
+    </motion.div>
+  );
+}
+
 function InstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [dismissed, setDismissed] = useState(() => localStorage.getItem('gravity-install-dismissed') === 'true');
+  const [showIOSGuide, setShowIOSGuide] = useState(false);
   const [isStandalone] = useState(() =>
     window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone === true
   );
@@ -68,49 +238,63 @@ function InstallPrompt() {
     localStorage.setItem('gravity-install-dismissed', 'true');
   };
 
-  // Don't show if already installed, dismissed, or no prompt available
-  // On iOS, show a manual instruction banner instead
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const isSafari = isIOS && /Safari/i.test(navigator.userAgent) && !/CriOS|FxiOS|OPiOS/i.test(navigator.userAgent);
   const showIOSBanner = isIOS && !isStandalone && !dismissed;
   const showAndroidBanner = !!deferredPrompt && !dismissed;
 
   if (!showIOSBanner && !showAndroidBanner) return null;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 60 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 60 }}
-      className="fixed bottom-20 left-4 right-4 z-[200] max-w-lg mx-auto"
-    >
-      <div className="bg-[var(--color-bg-card)] border border-[var(--color-sand)] rounded-2xl shadow-xl p-4 flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-[var(--color-primary)] flex items-center justify-center flex-shrink-0">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
-          </svg>
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-[var(--color-text-header)]">Add to Home Screen</p>
-          <p className="text-[12px] text-[var(--color-text-secondary)]">
-            {isIOS ? 'Tap Share → Add to Home Screen' : 'Install for the best experience'}
-          </p>
-        </div>
-        {showAndroidBanner ? (
-          <button onClick={handleInstall} className="btn-primary px-4 py-2 text-[11px] flex-shrink-0">
-            Install
-          </button>
-        ) : (
+    <>
+      <motion.div
+        initial={{ opacity: 0, y: 60 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 60 }}
+        className="fixed bottom-20 left-4 right-4 z-[200] max-w-lg mx-auto"
+      >
+        <div className="bg-[var(--color-bg-card)] border border-[var(--color-sand)] rounded-2xl shadow-xl p-4 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-[var(--color-primary)] flex items-center justify-center flex-shrink-0">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-[var(--color-text-header)]">Add to Home Screen</p>
+            <p className="text-[12px] text-[var(--color-text-secondary)]">
+              {isIOS
+                ? (isSafari ? 'Get the full app experience' : 'Open in Safari to install')
+                : 'Install for the best experience'}
+            </p>
+          </div>
+          {showIOSBanner ? (
+            <button
+              onClick={() => isSafari ? setShowIOSGuide(true) : undefined}
+              className="btn-primary px-4 py-2 text-[11px] flex-shrink-0"
+            >
+              {isSafari ? 'Show me' : 'How?'}
+            </button>
+          ) : (
+            <button onClick={handleInstall} className="btn-primary px-4 py-2 text-[11px] flex-shrink-0">
+              Install
+            </button>
+          )}
           <button onClick={handleDismiss} className="text-[var(--color-steel-light)] p-1 flex-shrink-0">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
           </button>
+        </div>
+      </motion.div>
+
+      {/* iOS step-by-step install guide modal */}
+      <AnimatePresence>
+        {showIOSGuide && (
+          <IOSInstallGuide onDismiss={() => {
+            setShowIOSGuide(false);
+            handleDismiss();
+          }} />
         )}
-        {showAndroidBanner && (
-          <button onClick={handleDismiss} className="text-[var(--color-steel-light)] p-1 flex-shrink-0">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
-          </button>
-        )}
-      </div>
-    </motion.div>
+      </AnimatePresence>
+    </>
   );
 }
 
@@ -131,6 +315,9 @@ function AppLayout() {
 
   return (
     <div className="min-h-screen bg-[var(--color-bg-warm)] font-sans text-[var(--color-text-primary)] overflow-x-hidden">
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-[999] focus:top-2 focus:left-2 focus:bg-[var(--color-primary)] focus:text-white focus:px-4 focus:py-2 focus:rounded-lg focus:text-sm focus:font-semibold">
+        Skip to content
+      </a>
       <OfflineBanner />
       <AnimatePresence>{user && <InstallPrompt />}</AnimatePresence>
       {showNavbar && <Navbar />}
@@ -143,6 +330,7 @@ function AppLayout() {
             exit={{ opacity: 0, x: -10 }}
             transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
             className="flex-1"
+            id="main-content"
           >
             <Suspense fallback={
               <div className="min-h-screen flex items-center justify-center">

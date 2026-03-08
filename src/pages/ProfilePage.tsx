@@ -5,6 +5,7 @@ import { supabase } from '../services/supabaseService';
 import { getDemoProfile, setDemoProfile, setDemoInterests } from '../services/mockData';
 import { APP_CONFIG } from '../config/appConfig';
 import { haptic } from '../utils/haptics';
+import { captureError } from '../utils/errorTracking';
 
 function resizeImage(file: File, maxDim: number): Promise<Blob> {
   return new Promise((resolve) => {
@@ -598,7 +599,7 @@ export default function ProfilePage() {
                       subscription: JSON.stringify(sub),
                       updated_at: new Date().toISOString(),
                     });
-                  } catch { /* push not supported */ }
+                  } catch (err) { captureError(err, { context: 'ProfilePage.pushSubscribe' }); }
                 }
               }
             }

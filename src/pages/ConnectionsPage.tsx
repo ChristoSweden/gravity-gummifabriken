@@ -34,9 +34,11 @@ export default function ConnectionsPage() {
   const [myInterests, setMyInterests] = useState<string[]>([]);
   const [expandedRequest, setExpandedRequest] = useState<string | null>(null);
   const [justAccepted, setJustAccepted] = useState<string | null>(null);
+  const [fetchError, setFetchError] = useState(false);
 
   const fetchConnections = React.useCallback(async () => {
     if (!user) return;
+    setFetchError(false);
 
     if (isDemo) {
       const connections = getDemoConnections();
@@ -61,13 +63,13 @@ export default function ConnectionsPage() {
       return;
     }
 
-    const { data: connections } = await supabase
+    const { data: connections, error: connError } = await supabase
       .from('connections')
       .select('*')
       .or(`requester_id.eq.${user.id},recipient_id.eq.${user.id}`)
       .order('created_at', { ascending: false });
 
-    if (!connections) { setLoading(false); return; }
+    if (connError || !connections) { setFetchError(true); setLoading(false); return; }
 
     const otherIds = connections.map((c) =>
       c.requester_id === user.id ? c.recipient_id : c.requester_id
@@ -213,6 +215,25 @@ export default function ConnectionsPage() {
     );
   }
 
+  if (fetchError) {
+    return (
+      <div className="min-h-screen bg-[var(--color-bg-warm)] pb-24">
+        <div className="max-w-lg mx-auto px-6 pt-8">
+          <div className="card p-10 text-center mt-10">
+            <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-[var(--color-error)]/8 flex items-center justify-center">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-error)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" />
+              </svg>
+            </div>
+            <h3 className="font-serif text-lg text-[var(--color-text-header)] mb-2">Couldn't load connections</h3>
+            <p className="text-sm text-[var(--color-text-secondary)] mb-5">Check your internet connection and try again.</p>
+            <button onClick={() => fetchConnections()} className="btn-primary px-6 py-2.5 text-xs">Retry</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[var(--color-bg-warm)] pb-24">
       <div className="max-w-lg mx-auto px-6 pt-8">
@@ -307,7 +328,7 @@ export default function ConnectionsPage() {
                       >
                         <div className="w-12 h-12 rounded-2xl overflow-hidden flex-shrink-0 ring-2 ring-[var(--color-accent)]/20">
                           {req.profile.avatar_url ? (
-                            <img src={req.profile.avatar_url} alt={req.profile.full_name} className="w-full h-full object-cover" />
+                            <img src={req.profile.avatar_url} alt={req.profile.full_name} loading="lazy" className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full bg-[var(--color-accent)] flex items-center justify-center text-white font-serif text-lg">
                               {req.profile.full_name?.charAt(0) || '?'}
@@ -461,7 +482,7 @@ export default function ConnectionsPage() {
                         <div className="relative w-12 h-12 flex-shrink-0">
                           <div className="w-12 h-12 rounded-2xl overflow-hidden">
                             {conn.profile.avatar_url ? (
-                              <img src={conn.profile.avatar_url} alt={conn.profile.full_name} className="w-full h-full object-cover" />
+                              <img src={conn.profile.avatar_url} alt={conn.profile.full_name} loading="lazy" className="w-full h-full object-cover" />
                             ) : (
                               <div className="w-full h-full bg-[var(--color-primary)] flex items-center justify-center text-white font-serif text-lg">
                                 {conn.profile.full_name?.charAt(0) || '?'}

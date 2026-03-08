@@ -10,6 +10,7 @@ import { APP_CONFIG } from '../config/appConfig';
 import { haptic } from '../utils/haptics';
 import { useFocusTrap } from '../utils/useFocusTrap';
 import { motion, AnimatePresence } from 'motion/react';
+import { captureError } from '../utils/errorTracking';
 
 /** Haversine distance between two GPS coordinates, in metres. */
 function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -135,6 +136,17 @@ export default function CampusRadarPage() {
   const modalFocusTrapRef = useFocusTrap<HTMLDivElement>(!!selectedMatch);
   const gpsModalFocusTrapRef = useFocusTrap<HTMLDivElement>(showGpsExplainer);
 
+  /** Check venue WiFi presence via server-side IP match — fast, no permissions needed. */
+  const checkWifiPresence = React.useCallback(async (): Promise<{ onsite: boolean; configured: boolean }> => {
+    try {
+      const res = await fetch('/api/presence-check');
+      if (!res.ok) return { onsite: false, configured: false };
+      return await res.json();
+    } catch {
+      return { onsite: false, configured: false };
+    }
+  }, []);
+
   /** Trigger the actual browser GPS request (called after explainer or directly). */
   const doGpsCheck = React.useCallback((): Promise<boolean> => {
     return new Promise((resolve) => {
@@ -152,7 +164,7 @@ export default function CampusRadarPage() {
               p_is_present: atVenue,
               p_last_seen_at: atVenue ? now : now,
             });
-          } catch { /* network error — presence will sync on next check */ }
+          } catch (err) { captureError(err, { context: 'CampusRadar.updatePresence' }); }
           resolve(atVenue);
         },
         (err) => {
@@ -165,20 +177,33 @@ export default function CampusRadarPage() {
     });
   }, [user, isDemo]);
 
-  /** Plan A: GPS geofence check — shows explainer on first use, then triggers browser prompt. */
-  const checkGpsPresence = React.useCallback(async (): Promise<boolean> => {
+  /** Presence check: WiFi first (instant, no prompt), GPS fallback. */
+  const checkPresence = React.useCallback(async (): Promise<boolean> => {
     if (!user || isDemo) return true;
+
+    // Plan A: WiFi IP match — instant, no permission needed
+    const wifi = await checkWifiPresence();
+    if (wifi.configured && wifi.onsite) {
+      setPresenceStatus('present');
+      const now = new Date().toISOString();
+      try {
+        await supabase.rpc('update_presence', {
+          p_is_present: true,
+          p_last_seen_at: now,
+        });
+      } catch (err) { captureError(err, { context: 'CampusRadar.wifiPresence' }); }
+      return true;
+    }
+
+    // Plan B: GPS geofence — requires permission
     if (!navigator.geolocation) {
       setPresenceStatus('gps_unavailable');
       return false;
     }
-    // Check if we've already asked (permission was already granted/denied)
     const permState = await navigator.permissions?.query?.({ name: 'geolocation' }).catch(() => null);
     if (permState && permState.state !== 'prompt') {
-      // Already granted or denied — skip explainer
       return doGpsCheck();
     }
-    // First time: show explainer, wait for user tap
     if (!localStorage.getItem('gravity-gps-explained')) {
       return new Promise((resolve) => {
         gpsExplainerResolve.current = resolve;
@@ -186,7 +211,7 @@ export default function CampusRadarPage() {
       });
     }
     return doGpsCheck();
-  }, [user, isDemo, doGpsCheck]);
+  }, [user, isDemo, checkWifiPresence, doGpsCheck]);
 
   const handleGpsExplainerAllow = () => {
     localStorage.setItem('gravity-gps-explained', '1');
@@ -436,7 +461,7 @@ export default function CampusRadarPage() {
     // presenceChecked ref prevents re-running on every re-render.
     if (!presenceChecked.current) {
       presenceChecked.current = true;
-      checkGpsPresence().then(() => fetchData());
+      checkPresence().then(() => fetchData());
     } else {
       fetchData();
     }
@@ -460,11 +485,11 @@ export default function CampusRadarPage() {
         }
       });
 
-    // GPS heartbeat: re-check presence every 2 minutes while page is visible
+    // Presence heartbeat: WiFi-first, GPS fallback — every 2 minutes while page is visible
     if (!isDemo) {
       heartbeatTimer.current = setInterval(() => {
         if (document.visibilityState === 'visible') {
-          doGpsCheck().then(() => debouncedFetch());
+          checkPresence().then(() => debouncedFetch());
         }
       }, 2 * 60 * 1000);
     }
@@ -477,8 +502,8 @@ export default function CampusRadarPage() {
         hiddenSince.current = null;
 
         if (wasHiddenMs > 5 * 60 * 1000 && !isDemo) {
-          // Gone for >5 min — re-check GPS (they may have left the venue)
-          doGpsCheck().then(() => fetchData());
+          // Gone for >5 min — re-check presence (they may have left the venue)
+          checkPresence().then(() => fetchData());
         } else {
           debouncedFetch();
         }
@@ -495,7 +520,7 @@ export default function CampusRadarPage() {
       supabase.removeChannel(channel);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [fetchData, checkGpsPresence, isDemo, doGpsCheck]);
+  }, [fetchData, checkPresence, isDemo, doGpsCheck]);
 
   // Fetch icebreakers when modal opens
   useEffect(() => {
@@ -523,7 +548,7 @@ export default function CampusRadarPage() {
         setIcebreakersLoading(false);
         return;
       }
-    } catch { /* Edge function not deployed — use fallback */ }
+    } catch (err) { captureError(err, { context: 'CampusRadar.icebreakers' }); }
 
     // Fallback: generate template-based icebreakers from profile data
     const suggestions: string[] = [];
@@ -691,8 +716,11 @@ export default function CampusRadarPage() {
   const maxPips = Math.min(matches.length, pipLayout.length);
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg-warm)] pb-28">
+    <div className="min-h-screen bg-[#0D0B09] pb-28 text-[#E8E0D4]">
       <div className="max-w-lg mx-auto px-6 pt-6">
+
+        {/* ── Header ── */}
+        <h1 className="font-serif text-2xl text-white mb-5 tracking-tight">Gravity.</h1>
 
         {/* ── Event mode banner ── */}
         {eventName && (
@@ -738,9 +766,9 @@ export default function CampusRadarPage() {
               exit={{ opacity: 0, y: -8 }}
               className="mb-4"
             >
-              <div className="bg-[var(--color-bg-card)] border border-[var(--color-sand)] rounded-2xl px-4 py-3.5 flex items-center gap-3">
+              <div className="bg-[#1A1714] border border-[#2A2522] rounded-2xl px-4 py-3.5 flex items-center gap-3">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-steel-light)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" /></svg>
-                <p className="text-[13px] text-[var(--color-text-secondary)] flex-1">
+                <p className="text-[13px] text-[#A09890] flex-1">
                   You're not at {APP_CONFIG.LOCATION_NAME} right now. Radar shows who's present.
                 </p>
                 <button
@@ -876,7 +904,7 @@ export default function CampusRadarPage() {
                         </div>
                       )
                     ) : (
-                      <div className="w-full h-full bg-[var(--color-bg-card)] flex items-center justify-center">
+                      <div className="w-full h-full bg-[#1A1714] flex items-center justify-center">
                         <span className="text-[11px] font-serif font-bold text-[var(--color-accent)]/70">G</span>
                       </div>
                     )}
@@ -890,7 +918,7 @@ export default function CampusRadarPage() {
                 </div>
                 {/* Tooltip */}
                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-8 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                  <div className="bg-[var(--color-bg-card)] text-[var(--color-text-primary)] text-[10px] font-semibold px-2.5 py-1 rounded-lg whitespace-nowrap shadow-lg border border-[var(--color-primary)]/20">
+                  <div className="bg-[#1A1714] text-[#E8E0D4] text-[10px] font-semibold px-2.5 py-1 rounded-lg whitespace-nowrap shadow-lg border border-[var(--color-primary)]/20">
                     {isRevealed ? match.full_name.split(' ')[0] : (match.profession || 'Professional')}
                     {freshness.label && <span className="text-[9px] ml-1" style={{ color: freshness.color }}>· {freshness.label}</span>}
                   </div>
@@ -902,12 +930,44 @@ export default function CampusRadarPage() {
           {/* +N more indicator */}
           {matches.length > maxPips && (
             <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-20">
-              <span className="text-[10px] font-bold text-[var(--color-accent)] bg-[var(--color-bg-card)]/90 backdrop-blur-sm px-2.5 py-1 rounded-full border border-[var(--color-accent)]/30 shadow-sm">
+              <span className="text-[10px] font-bold text-[var(--color-accent)] bg-[#1A1714]/90 backdrop-blur-sm px-2.5 py-1 rounded-full border border-[var(--color-accent)]/30 shadow-sm">
                 +{matches.length - maxPips} more nearby
               </span>
             </div>
           )}
         </div>
+
+        {/* ── Scan Summary Card ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="relative -mt-6 mb-8 bg-[#1A1714] border border-[#2A2522] rounded-3xl p-5 shadow-lg overflow-hidden"
+        >
+          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[var(--color-primary)]/40 to-transparent" />
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-[var(--color-primary)]/10 flex items-center justify-center flex-shrink-0">
+              <span className="text-lg font-serif font-bold text-[var(--color-primary)]">G</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xl font-bold text-white">
+                {matches.length} Active
+              </p>
+              <p className="text-[13px] text-[#A09890]">
+                {matches.length > 0
+                  ? 'Scanning local connections...\nFinding matches.'
+                  : presenceStatus === 'present' || presenceStatus === 'manual' || isDemo
+                    ? 'Scanning local connections...\nFinding matches.'
+                    : `Head to ${APP_CONFIG.LOCATION_NAME} to start scanning.`}
+              </p>
+            </div>
+            <div className="flex-shrink-0">
+              {(presenceStatus === 'present' || presenceStatus === 'manual' || isDemo) && (
+                <div className="w-3 h-3 bg-[var(--color-success)] rounded-full animate-gentle-pulse" />
+              )}
+            </div>
+          </div>
+        </motion.div>
 
         {/* New arrival toast */}
         <AnimatePresence>
@@ -930,7 +990,7 @@ export default function CampusRadarPage() {
             <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--color-steel-light)] mb-3">Live Activity</p>
             <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
               {activityFeed.map((item) => (
-                <div key={item.id} className="flex-shrink-0 bg-[var(--color-bg-card)]/80 backdrop-blur-sm border border-[var(--color-sand)] rounded-full px-3 py-1.5 flex items-center gap-2">
+                <div key={item.id} className="flex-shrink-0 bg-[#1A1714]/80 backdrop-blur-sm border border-[#2A2522] rounded-full px-3 py-1.5 flex items-center gap-2">
                   {item.type === 'join' ? (
                     <span className="w-1.5 h-1.5 bg-[var(--color-success)] rounded-full" />
                   ) : (
@@ -949,15 +1009,12 @@ export default function CampusRadarPage() {
           <h3 className="text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--color-steel-light)]">
             {eventName ? 'Event Attendees' : 'Nearby Professionals'}
           </h3>
-          <div className="flex items-center gap-2">
-            <span className="w-1.5 h-1.5 bg-[var(--color-success)] rounded-full" />
-            <span className="text-[12px] font-semibold text-[var(--color-primary-light)]">{matches.length} here</span>
-          </div>
+          <span className="text-[12px] font-semibold text-[var(--color-primary-light)]">{matches.length} Active</span>
         </div>
 
         {/* Match list */}
         {matches.length === 0 ? (
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-[var(--color-bg-card)] border border-[var(--color-sand)] rounded-[2rem] p-12 text-center">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-[#1A1714] border border-[#2A2522] rounded-[2rem] p-12 text-center">
             <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-[var(--color-primary)]/10 flex items-center justify-center text-[var(--color-primary)]">
               {presenceStatus === 'present' || presenceStatus === 'manual' || isDemo ? (
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/><line x1="12" y1="2" x2="12" y2="6"/></svg>
@@ -992,7 +1049,7 @@ export default function CampusRadarPage() {
                 >
                   <button
                     onClick={() => { if (!isRevealed) setSelectedMatch(match); }}
-                    className="w-full p-4 flex items-center gap-4 text-left bg-[var(--color-bg-card)] border border-[var(--color-sand)] rounded-2xl transition-all hover:border-[var(--color-primary)]/30 hover:shadow-[0_4px_20px_rgba(184,115,51,0.08)]"
+                    className="w-full p-4 flex items-center gap-4 text-left bg-[#1A1714] border border-[#2A2522] rounded-2xl transition-all hover:border-[var(--color-primary)]/30 hover:shadow-[0_4px_20px_rgba(184,115,51,0.12)]"
                   >
                     {/* Avatar — blurred until connected */}
                     {isRevealed ? (
@@ -1006,7 +1063,7 @@ export default function CampusRadarPage() {
                         )}
                       </div>
                     ) : (
-                      <div className="w-12 h-12 rounded-full bg-[var(--color-sand)] flex items-center justify-center flex-shrink-0">
+                      <div className="w-12 h-12 rounded-full bg-[#2A2522] flex items-center justify-center flex-shrink-0">
                         <span className="text-sm font-serif font-bold text-[var(--color-accent)]/60">G</span>
                       </div>
                     )}
@@ -1034,7 +1091,7 @@ export default function CampusRadarPage() {
                                 )}
                               </>
                             ) : (
-                              <span className="text-[10px] font-medium text-[var(--color-steel-light)] bg-[var(--color-sand)] px-2 py-0.5 rounded-full">
+                              <span className="text-[10px] font-medium text-[var(--color-steel-light)] bg-[#2A2522] px-2 py-0.5 rounded-full">
                                 Nearby
                               </span>
                             )}
@@ -1055,20 +1112,20 @@ export default function CampusRadarPage() {
                             <span className="text-[11px] font-bold text-[var(--color-accent)] bg-[var(--color-accent)]/10 px-2 py-0.5 rounded-full">
                               {userProfile?.interests ? Math.round((match.overlap.length / userProfile.interests.length) * 100) : 0}%
                             </span>
-                            <span className="absolute bottom-full right-0 mb-2 w-48 bg-[var(--color-bg-card)] border border-[var(--color-sand)] rounded-lg px-3 py-2 shadow-lg opacity-0 group-hover/pct:opacity-100 pointer-events-none transition-opacity z-50 text-left">
-                              <span className="block text-[10px] font-bold text-[var(--color-text-header)] mb-0.5">Interest Match</span>
-                              <span className="block text-[10px] text-[var(--color-text-secondary)]">
+                            <span className="absolute bottom-full right-0 mb-2 w-48 bg-[#1A1714] border border-[#2A2522] rounded-lg px-3 py-2 shadow-lg opacity-0 group-hover/pct:opacity-100 pointer-events-none transition-opacity z-50 text-left">
+                              <span className="block text-[10px] font-bold text-white mb-0.5">Interest Match</span>
+                              <span className="block text-[10px] text-[#A09890]">
                                 {match.overlap.length} of your {userProfile?.interests?.length || 0} interests overlap: {match.overlap.slice(0, 3).join(', ')}{match.overlap.length > 3 ? '...' : ''}
                               </span>
                             </span>
                           </span>
                         ) : (
                           <span className="relative group/new cursor-help">
-                            <span className="text-[11px] font-medium text-[var(--color-steel-light)] bg-[var(--color-sand)] px-2 py-0.5 rounded-full">
+                            <span className="text-[11px] font-medium text-[var(--color-steel-light)] bg-[#2A2522] px-2 py-0.5 rounded-full">
                               New
                             </span>
-                            <span className="absolute bottom-full right-0 mb-2 w-44 bg-[var(--color-bg-card)] border border-[var(--color-sand)] rounded-lg px-3 py-2 shadow-lg opacity-0 group-hover/new:opacity-100 pointer-events-none transition-opacity z-50 text-left">
-                              <span className="block text-[10px] text-[var(--color-text-secondary)]">No shared interests yet — but proximity is a great start!</span>
+                            <span className="absolute bottom-full right-0 mb-2 w-44 bg-[#1A1714] border border-[#2A2522] rounded-lg px-3 py-2 shadow-lg opacity-0 group-hover/new:opacity-100 pointer-events-none transition-opacity z-50 text-left">
+                              <span className="block text-[10px] text-[#A09890]">No shared interests yet — but proximity is a great start!</span>
                             </span>
                           </span>
                         )}
@@ -1087,7 +1144,7 @@ export default function CampusRadarPage() {
                       ) : status === 'pending_received' ? (
                         <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-error)] bg-[var(--color-error)]/10 px-2.5 py-1 rounded-full animate-gentle-pulse">Respond</span>
                       ) : (
-                        <div className="w-8 h-8 border border-[var(--color-sand)] text-[var(--color-steel-light)] rounded-full flex items-center justify-center">
+                        <div className="w-8 h-8 border border-[#2A2522] text-[var(--color-steel-light)] rounded-full flex items-center justify-center">
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
                         </div>
                       )}
@@ -1115,7 +1172,7 @@ export default function CampusRadarPage() {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-[var(--color-bg-warm)] w-full max-w-sm rounded-3xl p-8 shadow-xl border border-[var(--color-sand)] text-center"
+              className="bg-[#1A1714] w-full max-w-sm rounded-3xl p-8 shadow-xl border border-[#2A2522] text-center"
             >
               <div className="w-16 h-16 mx-auto mb-5 rounded-full bg-[var(--color-primary)]/10 flex items-center justify-center">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -1172,7 +1229,7 @@ export default function CampusRadarPage() {
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 40, opacity: 0 }}
               transition={{ type: 'spring', damping: 25 }}
-              className="bg-[var(--color-bg-warm)] w-full max-w-md rounded-t-3xl sm:rounded-3xl p-8 shadow-xl border border-[var(--color-sand)]/50 text-center"
+              className="bg-[#1A1714] w-full max-w-md rounded-t-3xl sm:rounded-3xl p-8 shadow-xl border border-[#2A2522]/50 text-center"
             >
               <div className="w-16 h-16 rounded-full bg-[var(--color-success)]/12 flex items-center justify-center mx-auto mb-5 animate-celebrate-pop">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -1184,7 +1241,7 @@ export default function CampusRadarPage() {
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowSuccess(false)}
-                  className="flex-1 py-3.5 rounded-2xl bg-[var(--color-sand-light)] text-[var(--color-text-secondary)] text-sm font-semibold hover:bg-[var(--color-sand)] transition-colors"
+                  className="flex-1 py-3.5 rounded-2xl bg-[#2A2522] text-[#A09890] text-sm font-semibold hover:bg-[#3A3532] transition-colors"
                 >
                   Back to Radar
                 </button>
@@ -1207,7 +1264,7 @@ export default function CampusRadarPage() {
               ref={modalFocusTrapRef}
               initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
               transition={{ type: 'spring', damping: 25 }}
-              className="bg-[var(--color-bg-warm)] w-full max-w-md rounded-t-3xl sm:rounded-3xl p-8 shadow-xl border border-[var(--color-sand)]/50"
+              className="bg-[#1A1714] w-full max-w-md rounded-t-3xl sm:rounded-3xl p-8 shadow-xl border border-[#2A2522]/50"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header — blurred identity */}
@@ -1249,7 +1306,7 @@ export default function CampusRadarPage() {
                   <p className="section-label mb-2">{selectedMatch.overlap.length} shared interests</p>
                   <div className="flex flex-wrap gap-1.5">
                     {selectedMatch.overlap.map((interest) => (
-                      <span key={interest} className="text-[12px] font-medium text-[var(--color-primary-dark)] bg-[var(--color-primary)]/8 px-3 py-1 rounded-full">
+                      <span key={interest} className="text-[12px] font-medium text-[var(--color-primary-light)] bg-[var(--color-primary)]/10 px-3 py-1 rounded-full">
                         {interest}
                       </span>
                     ))}
@@ -1277,8 +1334,8 @@ export default function CampusRadarPage() {
                           onClick={() => setInvitationMessage(suggestion)}
                           className={`text-left text-[12px] px-3 py-2 rounded-xl border transition-all ${
                             invitationMessage === suggestion
-                              ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/8 text-[var(--color-primary-dark)]'
-                              : 'border-[var(--color-sand)] text-[var(--color-text-secondary)] hover:border-[var(--color-steel)] hover:bg-[var(--color-sand)]/50'
+                              ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary-light)]'
+                              : 'border-[#2A2522] text-[#A09890] hover:border-[var(--color-steel)] hover:bg-[#2A2522]/50'
                           }`}
                         >
                           {suggestion}
@@ -1291,7 +1348,7 @@ export default function CampusRadarPage() {
 
               {/* Message */}
               <textarea
-                className="input-field min-h-[90px] resize-none mb-6"
+                className="input-field min-h-[90px] resize-none mb-6 !bg-[#0D0B09] !border-[#2A2522] !text-[#E8E0D4]"
                 placeholder="Introduce yourself... or tap a suggestion above"
                 value={invitationMessage}
                 onChange={(e) => setInvitationMessage(e.target.value)}
@@ -1331,10 +1388,10 @@ export default function CampusRadarPage() {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-[var(--color-bg-warm)] w-full max-w-sm rounded-[2.5rem] shadow-2xl border border-white/20 overflow-hidden relative"
+              className="bg-[#1A1714] w-full max-w-sm rounded-[2.5rem] shadow-2xl border border-[#2A2522] overflow-hidden relative"
             >
               {/* Profile Header */}
-              <div className="bg-[var(--color-primary)]/10 pt-12 pb-8 px-8 text-center border-b border-[var(--color-sand)]/50">
+              <div className="bg-[var(--color-primary)]/10 pt-12 pb-8 px-8 text-center border-b border-[#2A2522]/50">
                 <div className="relative inline-block mb-6">
                   <div className="absolute inset-0 bg-[var(--color-primary)] rounded-full blur-2xl opacity-20 animate-pulse" />
                   <BlurredAvatar size="lg" />
@@ -1359,7 +1416,7 @@ export default function CampusRadarPage() {
                 {/* Shared interests display (if interests exist) */}
                 <div className="flex flex-wrap gap-1.5 justify-center">
                   {(pendingReviewRequest.interests || []).slice(0, 3).map((interest) => (
-                    <span key={interest} className="text-[10px] font-semibold text-[var(--color-primary-dark)] bg-[var(--color-primary)]/8 px-3 py-1 rounded-full border border-[var(--color-primary)]/10">
+                    <span key={interest} className="text-[10px] font-semibold text-[var(--color-primary-light)] bg-[var(--color-primary)]/10 px-3 py-1 rounded-full border border-[var(--color-primary)]/15">
                       {interest}
                     </span>
                   ))}
@@ -1367,7 +1424,7 @@ export default function CampusRadarPage() {
 
                 {/* Message display */}
                 {pendingReviewRequest.message && (
-                  <div className="bg-[var(--color-bg-card)]/80 backdrop-blur-md rounded-2xl p-5 border border-[var(--color-sand)]/60 italic">
+                  <div className="bg-[#0D0B09]/80 backdrop-blur-md rounded-2xl p-5 border border-[#2A2522]/60 italic">
                     <p className="text-[13px] text-[var(--color-text-primary)] leading-relaxed">
                       "{pendingReviewRequest.message}"
                     </p>

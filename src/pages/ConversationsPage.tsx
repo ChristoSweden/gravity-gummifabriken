@@ -94,7 +94,8 @@ export default function ConversationsPage() {
           .from('messages')
           .select('sender_id, recipient_id, content, created_at, read_at')
           .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
-          .order('created_at', { ascending: false }),
+          .order('created_at', { ascending: false })
+          .limit(200),
       ]);
 
       const profileMap: Record<string, { full_name: string; profession: string; avatar_url: string; last_seen_at?: string; is_present?: boolean }> = {};
@@ -273,7 +274,7 @@ export default function ConversationsPage() {
                   <div className="relative flex-shrink-0">
                     <div className="w-13 h-13 rounded-full overflow-hidden" style={{ width: 52, height: 52 }}>
                       {conv.avatarUrl ? (
-                        <img src={conv.avatarUrl} alt={conv.fullName} className="w-full h-full object-cover" />
+                        <img src={conv.avatarUrl} alt={conv.fullName} loading="lazy" className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full bg-[var(--color-primary)] flex items-center justify-center text-white font-serif text-lg">
                           {conv.fullName.charAt(0)}

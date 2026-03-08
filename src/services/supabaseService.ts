@@ -1,10 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
+import { captureMessage } from '../utils/errorTracking';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (import.meta.env.PROD && (!supabaseUrl || !supabaseAnonKey)) {
-  console.warn('Supabase credentials not configured. Only demo mode will be available.');
+if (!supabaseUrl || !supabaseAnonKey) {
+  const msg = 'Supabase credentials not configured. Only demo mode will be available.';
+  if (import.meta.env.PROD) {
+    captureMessage(msg, { context: 'supabaseService.init' });
+  } else {
+    console.warn(msg);
+  }
 }
 
 // Demo mode is activated by user action, stored in sessionStorage
@@ -20,7 +26,9 @@ export function exitDemoMode() {
   if (typeof window !== 'undefined') sessionStorage.removeItem('gravity_demo_mode');
 }
 
+// In demo mode without real credentials, use a dummy client that won't make real requests.
+// The app guards all Supabase calls with isDemo checks, so the client is effectively inert.
 export const supabase = createClient(
-  supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseAnonKey || 'placeholder'
+  supabaseUrl || 'https://localhost.invalid',
+  supabaseAnonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder'
 );

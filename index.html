@@ -4,9 +4,23 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#FAF7F2" />
-    <meta name="description" content="Gravity — Proximity-based professional networking at Gummifabriken" />
+    <meta name="description" content="Gravity — Proximity-based professional networking at Gummifabriken. Discover who's nearby, connect over shared interests, and grow your network." />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Gravity @ Gummifabriken" />
+    <meta property="og:description" content="Proximity-based professional networking. Discover who's nearby, connect over shared interests, and grow your network." />
+    <meta property="og:image" content="/icon-512.png" />
+    <meta property="og:locale" content="en_GB" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Gravity @ Gummifabriken" />
+    <meta name="twitter:description" content="Proximity-based professional networking. Discover who's nearby and connect." />
+    <meta name="twitter:image" content="/icon-512.png" />
+
     <link rel="manifest" href="/manifest.json" />
     <link rel="icon" type="image/png" href="/icon-192.png" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
@@ -28,7 +42,9 @@
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').catch(() => {});
+          navigator.serviceWorker.register('/sw.js').catch(function(err) {
+            console.warn('[SW] Registration failed:', err);
+          });
         });
       }
     </script>

@@ -72,20 +72,22 @@ export default function EventsPage() {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
   const [createSuccess, setCreateSuccess] = useState(false);
+  const [fetchError, setFetchError] = useState(false);
 
   const createModalRef = useFocusTrap<HTMLDivElement>(showCreate);
 
   const fetchEvents = async () => {
     if (!user) return;
+    setFetchError(false);
     // Fetch active + recent past events (last 7 days)
     const pastCutoff = new Date(Date.now() - 7 * 86400000).toISOString();
-    const { data: evts } = await supabase
+    const { data: evts, error: evtError } = await supabase
       .from('events')
       .select('*')
       .gte('ends_at', pastCutoff)
       .order('starts_at', { ascending: true });
 
-    if (!evts) { setLoading(false); return; }
+    if (evtError || !evts) { setFetchError(true); setLoading(false); return; }
 
     const eventIds = evts.map(e => e.id);
     const [{ data: checkins }, { data: attendeeProfiles }] = await Promise.all([
@@ -247,6 +249,25 @@ export default function EventsPage() {
               <div className="skeleton h-10 w-full rounded-xl" />
             </div>
           ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <div className="min-h-screen bg-[var(--color-bg-warm)] pb-28">
+        <div className="max-w-lg mx-auto px-6 pt-8">
+          <div className="card p-10 text-center mt-10">
+            <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-[var(--color-error)]/8 flex items-center justify-center">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-error)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" />
+              </svg>
+            </div>
+            <h3 className="font-serif text-lg text-[var(--color-text-header)] mb-2">Couldn't load events</h3>
+            <p className="text-sm text-[var(--color-text-secondary)] mb-5">Check your internet connection and try again.</p>
+            <button onClick={() => fetchEvents()} className="btn-primary px-6 py-2.5 text-xs">Retry</button>
+          </div>
         </div>
       </div>
     );

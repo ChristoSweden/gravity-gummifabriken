@@ -1,5 +1,5 @@
-const CACHE_NAME = 'gravity-v2';
-const PRECACHE_URLS = ['/', '/index.html'];
+const CACHE_NAME = 'gravity-v3';
+const PRECACHE_URLS = ['/', '/index.html', '/icon-192.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -36,6 +36,20 @@ self.addEventListener('fetch', (event) => {
           return response;
         })
         .catch(() => caches.match('/index.html'))
+    );
+    return;
+  }
+
+  // Google Fonts: cache first (long-lived)
+  if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com') {
+    event.respondWith(
+      caches.match(event.request).then((cached) =>
+        cached || fetch(event.request).then((response) => {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          return response;
+        })
+      )
     );
     return;
   }

@@ -14,10 +14,8 @@ export default function Navbar() {
   const [unreadMsgCount, setUnreadMsgCount] = useState(0);
 
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + '/');
-  const isAdmin = user && (
-    APP_CONFIG.ADMIN_EMAILS.length === 0 ||
-    APP_CONFIG.ADMIN_EMAILS.includes(user.email?.toLowerCase() || '')
-  );
+  const isAdmin = user && APP_CONFIG.ADMIN_EMAILS.length > 0
+    && APP_CONFIG.ADMIN_EMAILS.includes(user.email?.toLowerCase() || '');
 
   useEffect(() => {
     if (!user) { setPendingCount(0); return; }

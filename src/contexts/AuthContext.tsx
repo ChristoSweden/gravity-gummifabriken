@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { Session, User } from '@supabase/supabase-js';
 import { supabase, isDemoMode, enterDemoMode as setDemoFlag, exitDemoMode as clearDemoFlag } from '../services/supabaseService';
 import { seedDemoData } from '../services/mockData';
+import { captureError, captureMessage } from '../utils/errorTracking';
 
 const DEMO_USER: User = {
   id: 'me-demo',
@@ -47,7 +48,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       try {
         const timeout = setTimeout(() => {
           if (loading) {
-            console.warn('Auth initialization timed out. Proceeding to app...');
+            captureMessage('Auth initialization timed out', { context: 'AuthContext.getSession' });
             setLoading(false);
           }
         }, 5000);
@@ -69,7 +70,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
         }
       } catch (error) {
-        console.error('Failed to get session:', error);
+        captureError(error, { context: 'AuthContext.getSession' });
       } finally {
         setLoading(false);
       }
@@ -77,11 +78,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     getSession();
 
+    // Proactive token refresh — refresh 5 minutes before expiry
+    let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+    const scheduleTokenRefresh = (sess: Session | null) => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      if (!sess?.expires_at) return;
+      const expiresMs = sess.expires_at * 1000;
+      const refreshIn = expiresMs - Date.now() - 5 * 60 * 1000; // 5 min before expiry
+      if (refreshIn > 0) {
+        refreshTimer = setTimeout(async () => {
+          const { error } = await supabase.auth.refreshSession();
+          if (error) captureError(error, { context: 'AuthContext.refreshSession' });
+        }, refreshIn);
+      }
+    };
+
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setSession(session);
         setUser(session?.user || null);
         setLoading(false);
+        scheduleTokenRefresh(session);
 
         if (event === 'PASSWORD_RECOVERY' && session?.user) {
           setNeedsPasswordSetup(true);
@@ -100,8 +117,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 updated_at: new Date().toISOString(),
               });
               setNeedsOnboarding(false);
-            } catch {
-              // non-fatal
+            } catch (err) {
+              captureError(err, { context: 'AuthContext.applyPendingProfile' });
             } finally {
               sessionStorage.removeItem('gravity_pending_profile');
             }
@@ -119,6 +136,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     );
 
     return () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
       authListener.subscription.unsubscribe();
     };
   }, []);
@@ -132,6 +150,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = async () => {
+    // Clean up all realtime subscriptions
+    supabase.removeAllChannels();
     if (isDemo) {
       clearDemoFlag();
       setUser(null);

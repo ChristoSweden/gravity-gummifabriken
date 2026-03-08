@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabaseService';
 import { APP_CONFIG } from '../config/appConfig';
 import { motion } from 'motion/react';
+import { captureError } from '../utils/errorTracking';
 
 interface InviteResult {
   email: string;
@@ -52,9 +53,9 @@ export default function AdminPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [analyticsError, setAnalyticsError] = useState(false);
 
+  // Fail closed: if no admin emails configured, deny access
   const isAdmin = APP_CONFIG.ADMIN_EMAILS.length > 0
-    ? APP_CONFIG.ADMIN_EMAILS.includes(user?.email?.toLowerCase() || '')
-    : true;
+    && APP_CONFIG.ADMIN_EMAILS.includes(user?.email?.toLowerCase() || '');
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -69,7 +70,7 @@ export default function AdminPage() {
     const { data, error: rpcError } = await supabase.rpc('get_admin_analytics');
 
     if (rpcError || !data) {
-      console.error('Admin analytics RPC failed:', rpcError);
+      captureError(rpcError, { context: 'AdminPage.fetchAnalytics' });
       setAnalyticsError(true);
       setLoadingAnalytics(false);
       setRefreshing(false);
@@ -164,7 +165,7 @@ export default function AdminPage() {
           inviteResults.push({ email, status: 'error', message: error.message });
         } else {
           // Record in allowlist so restricted signup mode works
-          await supabase.from('invited_emails').upsert({ email, invited_by: user?.id }).then(() => {}, () => {});
+          await supabase.from('invited_emails').upsert({ email, invited_by: user?.id }).then(null, (err) => captureError(err, { context: 'AdminPage.recordInvite', email }));
           inviteResults.push({ email, status: 'sent' });
         }
       } catch (e: any) {
@@ -201,10 +202,12 @@ export default function AdminPage() {
         </header>
 
         {/* Tabs */}
-        <div className="flex gap-1 bg-[var(--color-sand)]/40 rounded-2xl p-1 mb-8">
+        <div role="tablist" aria-label="Admin sections" className="flex gap-1 bg-[var(--color-sand)]/40 rounded-2xl p-1 mb-8">
           {(['overview', 'invite'] as const).map((t) => (
             <button
               key={t}
+              role="tab"
+              aria-selected={tab === t}
               onClick={() => setTab(t)}
               className={`flex-1 py-2.5 text-[12px] font-semibold uppercase tracking-widest rounded-xl transition-all ${
                 tab === t
@@ -219,7 +222,7 @@ export default function AdminPage() {
 
         {/* ── ANALYTICS TAB ── */}
         {tab === 'overview' && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+          <motion.div role="tabpanel" aria-label="Analytics" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
             {loadingAnalytics ? (
               /* Skeleton loading states */
               <>
@@ -413,7 +416,7 @@ export default function AdminPage() {
 
         {/* ── INVITE TAB ── */}
         {tab === 'invite' && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <motion.div role="tabpanel" aria-label="Invite" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <div className="card p-6 mb-6">
               <p className="section-label mb-3">Email list</p>
               <textarea

@@ -3,6 +3,15 @@
  * Allows easy white-labeling and location-based customization.
  * Set VITE_ env vars in .env to override defaults.
  */
+function clampLat(v: string | undefined, fallback: number): number {
+    const n = parseFloat(v || String(fallback));
+    return Number.isFinite(n) && n >= -90 && n <= 90 ? n : fallback;
+}
+function clampLng(v: string | undefined, fallback: number): number {
+    const n = parseFloat(v || String(fallback));
+    return Number.isFinite(n) && n >= -180 && n <= 180 ? n : fallback;
+}
+
 export const APP_CONFIG = {
     APP_NAME: import.meta.env.VITE_APP_NAME || 'Gravity',
     LOCATION_NAME: import.meta.env.VITE_LOCATION_NAME || 'Gummifabriken',
@@ -11,8 +20,8 @@ export const APP_CONFIG = {
 
     // Venue GPS coordinates — update VITE_VENUE_LAT / VITE_VENUE_LNG in .env
     // Default: Gummifabriken, Värnamo, Sweden
-    VENUE_LAT: parseFloat(import.meta.env.VITE_VENUE_LAT || '57.1826'),
-    VENUE_LNG: parseFloat(import.meta.env.VITE_VENUE_LNG || '13.9456'),
+    VENUE_LAT: clampLat(import.meta.env.VITE_VENUE_LAT, 57.1826),
+    VENUE_LNG: clampLng(import.meta.env.VITE_VENUE_LNG, 13.9456),
     // Radius in metres for presence detection (Plan A GPS geofencing)
     PRESENCE_RADIUS_M: parseInt(import.meta.env.VITE_PRESENCE_RADIUS_M || '200', 10),
 

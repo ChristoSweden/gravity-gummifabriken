@@ -5,6 +5,7 @@ import { supabase } from '../services/supabaseService';
 import { MOCK_USERS, getDemoMessages, addDemoMessage, isConnectedInDemo } from '../services/mockData';
 import { motion, AnimatePresence } from 'motion/react';
 import { haptic } from '../utils/haptics';
+import { captureError } from '../utils/errorTracking';
 
 interface Message {
   id: string;
@@ -114,7 +115,7 @@ export default function ChatPage() {
           });
           // Auto-mark as read since chat is open
           if (!isDemo) {
-            supabase.from('messages').update({ read_at: new Date().toISOString() }).eq('id', payload.new.id).then(() => {}, () => {});
+            supabase.from('messages').update({ read_at: new Date().toISOString() }).eq('id', payload.new.id).then(null, (err) => captureError(err, { context: 'ChatPage.markReadRealtime' }));
           }
         }
       })
@@ -148,7 +149,7 @@ export default function ChatPage() {
         .eq('sender_id', userId)
         .eq('recipient_id', user.id)
         .is('read_at', null)
-        .then(() => {}, () => {});
+        .then(null, (err) => captureError(err, { context: 'ChatPage.markReadOnOpen' }));
     }
 
     return () => {
@@ -161,6 +162,31 @@ export default function ChatPage() {
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Flush offline message queue when back online
+  useEffect(() => {
+    const flushQueue = async () => {
+      const raw = localStorage.getItem('gravity_msg_queue');
+      if (!raw || !user) return;
+      const queued = JSON.parse(raw) as { sender_id: string; recipient_id: string; content: string; tempId: string }[];
+      if (queued.length === 0) return;
+      localStorage.removeItem('gravity_msg_queue');
+      for (const msg of queued) {
+        const { data, error } = await supabase
+          .from('messages')
+          .insert([{ sender_id: msg.sender_id, recipient_id: msg.recipient_id, content: msg.content }])
+          .select()
+          .single();
+        if (!error && data) {
+          setMessages((prev) => prev.map((m) => m.id === msg.tempId ? data : m));
+        } else if (error) {
+          captureError(error, { context: 'ChatPage.flushOfflineQueue' });
+        }
+      }
+    };
+    window.addEventListener('online', flushQueue);
+    return () => window.removeEventListener('online', flushQueue);
+  }, [user]);
 
   const broadcastTyping = useCallback((typing: boolean) => {
     if (isDemo || !typingChannelRef.current) return;
@@ -211,6 +237,16 @@ export default function ChatPage() {
     setNewMessage('');
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
 
+    // If offline, queue the message for retry when back online
+    if (!navigator.onLine) {
+      const queued = JSON.parse(localStorage.getItem('gravity_msg_queue') || '[]');
+      queued.push({ sender_id: user.id, recipient_id: userId, content, tempId });
+      localStorage.setItem('gravity_msg_queue', JSON.stringify(queued));
+      setSendError('You\'re offline — message will be sent when you reconnect.');
+      setTimeout(() => setSendError(null), 4000);
+      return;
+    }
+
     const { data, error } = await supabase
       .from('messages')
       .insert([{ sender_id: user.id, recipient_id: userId, content }])
@@ -239,22 +275,24 @@ export default function ChatPage() {
   const handleBlock = async () => {
     if (!user || !userId || isDemo) return;
     if (!window.confirm(`Block ${recipientName}? They won't be able to message you or see your profile.`)) return;
-    await supabase.from('blocked_users').upsert({ blocker_id: user.id, blocked_id: userId });
-    // Remove the connection
-    await supabase.from('connections').delete()
+    const { error: blockErr } = await supabase.from('blocked_users').upsert({ blocker_id: user.id, blocked_id: userId });
+    if (blockErr) { captureError(blockErr, { context: 'ChatPage.blockUser' }); return; }
+    const { error: delErr } = await supabase.from('connections').delete()
       .or(`and(requester_id.eq.${user.id},recipient_id.eq.${userId}),and(requester_id.eq.${userId},recipient_id.eq.${user.id})`);
+    if (delErr) captureError(delErr, { context: 'ChatPage.blockUser.deleteConnection' });
     setShowMenu(false);
     navigate('/chat');
   };
 
   const handleReport = async () => {
     if (!user || !userId || !reportReason) return;
-    await supabase.from('reports').insert({
+    const { error: reportErr } = await supabase.from('reports').insert({
       reporter_id: user.id,
       reported_id: userId,
       reason: reportReason,
       details: reportDetails || null,
     });
+    if (reportErr) { captureError(reportErr, { context: 'ChatPage.report' }); return; }
     setReportSent(true);
     setTimeout(() => { setShowReportModal(false); setReportSent(false); setReportReason(''); setReportDetails(''); }, 2000);
   };
