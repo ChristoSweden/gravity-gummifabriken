@@ -158,13 +158,17 @@ export default function CampusRadarPage() {
           );
           const atVenue = dist <= APP_CONFIG.PRESENCE_RADIUS_M;
           setPresenceStatus(atVenue ? 'present' : 'absent');
-          const now = new Date().toISOString();
-          try {
-            await supabase.rpc('update_presence', {
-              p_is_present: atVenue,
-              p_last_seen_at: atVenue ? now : now,
-            });
-          } catch (err) { captureError(err, { context: 'CampusRadar.updatePresence' }); }
+          // Only push presence to DB when at venue — don't overwrite
+          // manual check-ins or auto-check-in with false
+          if (atVenue) {
+            const now = new Date().toISOString();
+            try {
+              await supabase.rpc('update_presence', {
+                p_is_present: true,
+                p_last_seen_at: now,
+              });
+            } catch (err) { captureError(err, { context: 'CampusRadar.updatePresence' }); }
+          }
           resolve(atVenue);
         },
         (err) => {

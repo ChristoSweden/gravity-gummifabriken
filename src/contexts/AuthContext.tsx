@@ -67,6 +67,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             .maybeSingle();
           if (!data || !data.interests || data.interests.length < 3) {
             setNeedsOnboarding(true);
+          } else {
+            // Auto-check-in on session restore so user appears on radar
+            const now = new Date().toISOString();
+            supabase.rpc('update_presence', { p_is_present: true, p_last_seen_at: now }).then(() => {}, () => {});
           }
         }
       } catch (error) {
