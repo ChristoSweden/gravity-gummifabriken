@@ -1,11 +1,9 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-
 /**
  * Vercel Serverless Function: WiFi-based presence detection.
  * Compares the client's public IP against known venue WiFi IPs.
  * GET /api/presence-check → { onsite: boolean, method: 'wifi', configured: boolean }
  */
-export default function handler(req: VercelRequest, res: VercelResponse) {
+export default function handler(req: any, res: any) {
   if (req.method !== 'GET') {
     res.status(405).json({ error: 'Method not allowed' });
     return;
@@ -14,7 +12,7 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
   const venueIps = new Set(
     (process.env.VENUE_PUBLIC_IPS || '')
       .split(',')
-      .map((ip) => ip.trim())
+      .map((ip: string) => ip.trim())
       .filter(Boolean)
   );
 
@@ -23,7 +21,6 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  // Support X-Forwarded-For for reverse proxies (Vercel edge)
   const forwarded = req.headers['x-forwarded-for'];
   const clientIp =
     typeof forwarded === 'string'

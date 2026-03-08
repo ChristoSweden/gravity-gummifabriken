@@ -137,7 +137,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             // Auto-check-in on login so user immediately appears on radar
             if (data && data.interests && data.interests.length >= 3) {
               const now = new Date().toISOString();
-              supabase.rpc('update_presence', { p_is_present: true, p_last_seen_at: now }).catch(() => {});
+              supabase.rpc('update_presence', { p_is_present: true, p_last_seen_at: now }).then(() => {}, () => {});
             }
           }
         }
