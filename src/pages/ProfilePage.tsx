@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabaseService';
 import { getDemoProfile, setDemoProfile, setDemoInterests } from '../services/mockData';
 import { APP_CONFIG } from '../config/appConfig';
+import { haptic } from '../utils/haptics';
 
 function resizeImage(file: File, maxDim: number): Promise<Blob> {
   return new Promise((resolve) => {
@@ -35,6 +36,7 @@ export default function ProfilePage() {
   const [intent, setIntent] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [gpsEnabled, setGpsEnabled] = useState(true);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [isIncognito, setIsIncognito] = useState(false);
@@ -46,6 +48,7 @@ export default function ProfilePage() {
   const [editing, setEditing] = useState(false);
   const [networkCount, setNetworkCount] = useState(0);
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('gravity-theme') === 'dark');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -107,6 +110,7 @@ export default function ProfilePage() {
     setMessage(null);
     setError(null);
     setSaving(true);
+    haptic('light');
 
     if (isDemo) {
       setDemoProfile(fullName, profession, company);
@@ -131,7 +135,12 @@ export default function ProfilePage() {
     });
 
     if (updateError) setError(updateError.message);
-    else { setMessage('Profile saved'); setEditing(false); setTimeout(() => setMessage(null), 3000); }
+    else {
+      haptic('success');
+      setMessage('Profile saved');
+      setEditing(false);
+      setTimeout(() => setMessage(null), 3000);
+    }
     setSaving(false);
   };
 
@@ -150,7 +159,13 @@ export default function ProfilePage() {
     if (!file || !user || isDemo) return;
 
     setUploadingAvatar(true);
+    setUploadProgress(0);
     setError(null);
+
+    // Simulate progress during resize + upload
+    const progressInterval = setInterval(() => {
+      setUploadProgress(prev => Math.min(prev + 15, 85));
+    }, 200);
 
     const resized = await resizeImage(file, 512);
     const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
@@ -160,11 +175,16 @@ export default function ProfilePage() {
       .from('avatars')
       .upload(path, resized, { upsert: true, contentType: resized.type });
 
+    clearInterval(progressInterval);
+
     if (uploadErr) {
       setError('Photo upload failed. Try a smaller image.');
       setUploadingAvatar(false);
+      setUploadProgress(0);
       return;
     }
+
+    setUploadProgress(90);
 
     const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
     const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`;
@@ -173,12 +193,19 @@ export default function ProfilePage() {
     if (profileErr) {
       setError('Photo uploaded but profile update failed. Try again.');
       setUploadingAvatar(false);
+      setUploadProgress(0);
       return;
     }
+
+    setUploadProgress(100);
     setAvatarUrl(publicUrl);
-    setUploadingAvatar(false);
-    setMessage('Photo updated');
-    setTimeout(() => setMessage(null), 3000);
+    haptic('success');
+    setTimeout(() => {
+      setUploadingAvatar(false);
+      setUploadProgress(0);
+      setMessage('Photo updated');
+      setTimeout(() => setMessage(null), 3000);
+    }, 300);
   };
 
   const addInterestTag = (value: string) => {
@@ -237,11 +264,12 @@ export default function ProfilePage() {
   const handleDeleteAccount = async () => {
     if (isDemo) { await logout(); navigate('/'); return; }
     if (!user) return;
-    if (!window.confirm('This will permanently delete your account and all data. This cannot be undone.')) return;
+    if (!showDeleteConfirm) { setShowDeleteConfirm(true); return; }
 
     const { error: deleteError } = await supabase.rpc('delete_user');
     if (deleteError) {
       setError('Account deletion failed. Please contact support.');
+      setShowDeleteConfirm(false);
       return;
     }
     await supabase.auth.signOut();
@@ -255,10 +283,21 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[var(--color-bg-warm)] flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 rounded-full border-2 border-[var(--color-primary)] border-t-transparent animate-spin mx-auto mb-4" />
-          <p className="section-label">Loading profile...</p>
+      <div className="min-h-screen bg-[var(--color-bg-warm)] pb-24">
+        <div className="h-24 bg-[var(--color-primary)]" />
+        <div className="max-w-lg mx-auto px-6 -mt-12">
+          <div className="flex flex-col items-center mb-6">
+            <div className="skeleton w-24 h-24 rounded-2xl mb-3" style={{ borderRadius: '1rem' }} />
+            <div className="skeleton h-6 w-36 mb-1" />
+            <div className="skeleton h-4 w-28" />
+          </div>
+          <div className="flex gap-3 mb-8">
+            <div className="skeleton h-20 flex-1 rounded-2xl" />
+            <div className="skeleton h-20 flex-1 rounded-2xl" />
+          </div>
+          {[1, 2, 3].map(i => (
+            <div key={i} className="skeleton h-16 w-full rounded-2xl mb-3" />
+          ))}
         </div>
       </div>
     );
@@ -276,32 +315,22 @@ export default function ProfilePage() {
   }
 
   const Toggle = ({ value, onToggle, label, desc }: { value: boolean; onToggle: () => void; label: string; desc: string }) => (
-    <div className="flex items-center justify-between py-3">
-      <div>
+    <div className="flex items-center justify-between py-3.5">
+      <div className="flex-1 min-w-0">
         <p className="text-[15px] font-medium text-[var(--color-text-primary)]">{label}</p>
         <p className="text-[13px] text-[var(--color-text-secondary)] mt-0.5">{desc}</p>
       </div>
       <button
         type="button"
         onClick={onToggle}
-        className={`relative w-12 h-7 rounded-full transition-colors duration-200 flex-shrink-0 ml-4 ${value ? 'bg-[var(--color-primary)]' : 'bg-[var(--color-sand)]'}`}
+        role="switch"
+        aria-checked={value}
         aria-label={`Toggle ${label}`}
+        className={`relative w-12 h-7 rounded-full transition-colors duration-200 flex-shrink-0 ml-4 ${value ? 'bg-[var(--color-primary)]' : 'bg-[var(--color-sand)]'}`}
       >
         <div className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-sm transition-transform duration-200 ${value ? 'translate-x-5' : 'translate-x-0'}`} />
       </button>
     </div>
-  );
-
-  const SettingsRow = ({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick?: () => void }) => (
-    <button
-      type="button"
-      onClick={onClick}
-      className="w-full flex items-center gap-3 py-4 text-left hover:bg-[var(--color-mist)]/50 transition-colors -mx-1 px-1 rounded-lg"
-    >
-      <span className="text-[var(--color-steel-light)]">{icon}</span>
-      <span className="flex-1 text-[15px] text-[var(--color-text-primary)]">{label}</span>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-steel-light)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
-    </button>
   );
 
   return (
@@ -321,31 +350,80 @@ export default function ProfilePage() {
                   {fullName.charAt(0) || '?'}
                 </div>
               )}
+              {/* Upload progress overlay */}
+              {uploadingAvatar && (
+                <div className="absolute inset-0 bg-black/50 rounded-2xl flex items-center justify-center">
+                  <div className="relative w-12 h-12">
+                    <svg className="w-12 h-12 -rotate-90" viewBox="0 0 40 40">
+                      <circle cx="20" cy="20" r="16" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="3" />
+                      <circle
+                        cx="20" cy="20" r="16" fill="none" stroke="white" strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeDasharray={`${uploadProgress * 1.005} 100.5`}
+                        className="transition-all duration-300"
+                      />
+                    </svg>
+                    <span className="absolute inset-0 flex items-center justify-center text-white text-[10px] font-bold">
+                      {uploadProgress}%
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={uploadingAvatar || isDemo}
-              className="absolute bottom-0 right-0 w-8 h-8 bg-[var(--color-primary)] text-white rounded-full flex items-center justify-center border-2 border-[var(--color-bg-warm)] hover:bg-[var(--color-primary-dark)] transition-colors"
+              className="absolute bottom-0 right-0 w-8 h-8 bg-[var(--color-primary)] text-white rounded-full flex items-center justify-center border-2 border-[var(--color-bg-warm)] hover:bg-[var(--color-primary-dark)] transition-colors disabled:opacity-50"
+              aria-label="Change photo"
             >
-              {uploadingAvatar ? (
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" />
-                </svg>
-              )}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" />
+              </svg>
             </button>
           </div>
           <input ref={fileInputRef} type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
           <h2 className="font-serif text-2xl text-[var(--color-text-header)]">{fullName || 'Your Name'}</h2>
           <p className="text-[13px] text-[var(--color-text-secondary)] mt-0.5">
-            {[profession, company].filter(Boolean).join(' · ') || 'Add your role'}
+            {[profession, company].filter(Boolean).join(' at ') || 'Add your role'}
           </p>
         </div>
 
+        {/* Profile completeness */}
+        {(() => {
+          const steps = [
+            { done: !!fullName, label: 'Name' },
+            { done: !!profession, label: 'Headline' },
+            { done: !!avatarUrl, label: 'Photo' },
+            { done: interestTags.length >= 3, label: '3+ Interests' },
+            { done: !!intent, label: 'Intent' },
+          ];
+          const completed = steps.filter(s => s.done).length;
+          const pct = Math.round((completed / steps.length) * 100);
+          if (pct < 100) {
+            const nextStep = steps.find(s => !s.done);
+            return (
+              <div className="mb-4 bg-[var(--color-primary)]/6 border border-[var(--color-primary)]/15 rounded-2xl px-4 py-3">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[12px] font-semibold text-[var(--color-primary)]">Profile {pct}% complete</p>
+                  <p className="text-[11px] text-[var(--color-text-secondary)]">{completed}/{steps.length}</p>
+                </div>
+                <div className="h-1.5 bg-[var(--color-sand)] rounded-full overflow-hidden mb-2">
+                  <div className="h-full bg-[var(--color-primary)] rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
+                </div>
+                {nextStep && (
+                  <button onClick={() => setEditing(true)} className="text-[11px] text-[var(--color-primary)] font-medium hover:underline">
+                    Next: Add your {nextStep.label.toLowerCase()}
+                  </button>
+                )}
+              </div>
+            );
+          }
+          return null;
+        })()}
+
         {/* Stats row */}
-        <div className="grid grid-cols-2 gap-3 mb-8">
+        <div className="grid grid-cols-2 gap-3 mb-4">
           <div className="bg-[var(--color-mist)] border border-[var(--color-sand)] rounded-2xl p-4 text-center">
             <div className="font-serif text-2xl text-[var(--color-primary)]">{networkCount}</div>
             <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-steel-light)] mt-1">Network</div>
@@ -356,17 +434,52 @@ export default function ProfilePage() {
           </div>
         </div>
 
+        {/* Share profile */}
+        <button
+          onClick={async () => {
+            haptic('light');
+            if (navigator.share) {
+              await navigator.share({
+                title: `${fullName} on ${APP_CONFIG.APP_NAME}`,
+                text: `Connect with ${fullName} — ${profession || 'Professional'} at ${APP_CONFIG.LOCATION_NAME}`,
+                url: window.location.origin,
+              }).catch(() => {});
+            } else {
+              await navigator.clipboard.writeText(`${fullName} — ${profession || ''} | ${APP_CONFIG.APP_NAME} at ${APP_CONFIG.LOCATION_NAME}`);
+              setMessage('Profile link copied!');
+              setTimeout(() => setMessage(null), 2000);
+            }
+          }}
+          className="w-full mb-8 py-3 text-[12px] font-bold uppercase tracking-widest text-[var(--color-primary)] border border-[var(--color-primary)]/20 rounded-full hover:bg-[var(--color-primary)]/5 transition-colors flex items-center justify-center gap-2"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" /><polyline points="16 6 12 2 8 6" /><line x1="12" y1="2" x2="12" y2="15" />
+          </svg>
+          Share Profile
+        </button>
+
         {/* Toast */}
         {(message || error) && (
-          <div className={`mb-6 px-4 py-3 rounded-[var(--radius-md)] text-sm font-medium ${
-            message ? 'bg-[var(--color-success)]/8 text-[var(--color-success)] border border-[var(--color-success)]/15' : 'bg-[var(--color-error)]/5 text-[var(--color-error)] border border-[var(--color-error)]/15'
-          }`}>
+          <div
+            role="status"
+            aria-live="polite"
+            className={`mb-6 px-4 py-3 rounded-2xl text-sm font-medium flex items-center gap-3 animate-fade-in ${
+              message
+                ? 'bg-[var(--color-success)]/8 text-[var(--color-success)] border border-[var(--color-success)]/15'
+                : 'bg-[var(--color-error)]/5 text-[var(--color-error)] border border-[var(--color-error)]/15'
+            }`}
+          >
+            {message ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            )}
             {message || error}
           </div>
         )}
 
         {/* Interests & Intent section */}
-        <section className="card p-5 mb-6">
+        <section className="card p-5 mb-4">
           <div className="flex items-center justify-between mb-4">
             <h3 className="section-label">Interests & Intent</h3>
             <button
@@ -413,16 +526,22 @@ export default function ProfilePage() {
                     onChange={(e) => setInterestInput(e.target.value)}
                     onKeyDown={handleInterestKeyDown}
                     onBlur={() => { if (interestInput.trim()) addInterestTag(interestInput); }}
-                    placeholder={interestTags.length === 0 ? 'Type and press Enter...' : ''}
+                    placeholder={interestTags.length === 0 ? 'Type and press Enter...' : '+ Add interest'}
                   />
                 </div>
+                <p className="text-[11px] text-[var(--color-steel-light)] mt-1.5">Press Enter or comma to add</p>
               </div>
               <div>
                 <label className="section-label block mb-1.5">Professional Intent</label>
-                <textarea className="input-field min-h-[64px] resize-none" value={intent} onChange={(e) => setIntent(e.target.value)} placeholder="What are you looking for?" />
+                <textarea className="input-field min-h-[64px] resize-none" value={intent} onChange={(e) => setIntent(e.target.value)} placeholder="What are you looking for at Gummifabriken?" />
               </div>
               <button type="submit" disabled={saving} className="btn-primary w-full py-3.5 text-xs">
-                {saving ? 'Saving...' : 'Save Changes'}
+                {saving ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Saving...
+                  </span>
+                ) : 'Save Changes'}
               </button>
             </form>
           ) : (
@@ -431,11 +550,16 @@ export default function ProfilePage() {
                 <p className="section-label mb-2">Core Interests</p>
                 <div className="flex flex-wrap gap-1.5">
                   {interestTags.length > 0 ? interestTags.map((tag) => (
-                    <span key={tag} className="text-[12px] font-medium text-[var(--color-text-primary)] bg-[var(--color-mist)] border border-[var(--color-sand)] px-3 py-1 rounded-full">
+                    <span key={tag} className="text-[12px] font-medium text-[var(--color-text-primary)] bg-[var(--color-mist)] border border-[var(--color-sand)] px-3 py-1.5 rounded-full">
                       {tag}
                     </span>
                   )) : (
-                    <p className="text-sm text-[var(--color-text-secondary)] italic">No interests added yet</p>
+                    <button
+                      onClick={() => setEditing(true)}
+                      className="text-sm text-[var(--color-primary)] hover:underline"
+                    >
+                      + Add your interests to get better matches
+                    </button>
                   )}
                 </div>
               </div>
@@ -450,52 +574,44 @@ export default function ProfilePage() {
         </section>
 
         {/* App Settings */}
-        <section className="card p-5 mb-6">
-          <SettingsRow
-            icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>}
-            label="App Settings"
-            onClick={() => setEditing(true)}
-          />
-          <div className="section-divider" />
-          <div className="py-2">
-            <Toggle value={gpsEnabled} onToggle={() => { const v = !gpsEnabled; setGpsEnabled(v); autoSaveToggle('gps_enabled', v); }} label="GPS Location" desc={`Detect proximity to ${APP_CONFIG.LOCATION_NAME}`} />
-            <div className="section-divider my-1" />
-            <Toggle value={notificationsEnabled} onToggle={async () => {
-              const v = !notificationsEnabled;
-              setNotificationsEnabled(v);
-              autoSaveToggle('notifications_enabled', v);
-              if (v && 'Notification' in window && Notification.permission === 'default') {
-                const perm = await Notification.requestPermission();
-                if (perm === 'granted' && 'serviceWorker' in navigator) {
-                  const reg = await navigator.serviceWorker.ready;
-                  const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
-                  if (vapidKey) {
-                    try {
-                      const sub = await reg.pushManager.subscribe({
-                        userVisibleOnly: true,
-                        applicationServerKey: vapidKey,
-                      });
-                      // Store subscription on server
-                      await supabase.from('push_subscriptions').upsert({
-                        user_id: user!.id,
-                        subscription: JSON.stringify(sub),
-                        updated_at: new Date().toISOString(),
-                      });
-                    } catch { /* push not supported */ }
-                  }
+        <section className="card p-5 mb-4">
+          <h3 className="section-label mb-3">App Settings</h3>
+          <Toggle value={gpsEnabled} onToggle={() => { const v = !gpsEnabled; setGpsEnabled(v); autoSaveToggle('gps_enabled', v); }} label="GPS Location" desc={`Detect proximity to ${APP_CONFIG.LOCATION_NAME}`} />
+          <div className="section-divider my-1" />
+          <Toggle value={notificationsEnabled} onToggle={async () => {
+            const v = !notificationsEnabled;
+            setNotificationsEnabled(v);
+            autoSaveToggle('notifications_enabled', v);
+            if (v && 'Notification' in window && Notification.permission === 'default') {
+              const perm = await Notification.requestPermission();
+              if (perm === 'granted' && 'serviceWorker' in navigator) {
+                const reg = await navigator.serviceWorker.ready;
+                const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+                if (vapidKey) {
+                  try {
+                    const sub = await reg.pushManager.subscribe({
+                      userVisibleOnly: true,
+                      applicationServerKey: vapidKey,
+                    });
+                    await supabase.from('push_subscriptions').upsert({
+                      user_id: user!.id,
+                      subscription: JSON.stringify(sub),
+                      updated_at: new Date().toISOString(),
+                    });
+                  } catch { /* push not supported */ }
                 }
               }
-            }} label="Push Notifications" desc="Get notified on connection requests" />
-            <div className="section-divider my-1" />
-            <Toggle value={darkMode} onToggle={toggleDarkMode} label="Dark Mode" desc="Easier on the eyes at night" />
-          </div>
+            }
+          }} label="Push Notifications" desc="Get notified on connection requests" />
+          <div className="section-divider my-1" />
+          <Toggle value={darkMode} onToggle={toggleDarkMode} label="Dark Mode" desc="Easier on the eyes at night" />
         </section>
 
         {/* Privacy Settings */}
-        <section className="card p-5 mb-6">
-          <div className="flex items-center gap-3 mb-3">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-steel-light)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            <span className="text-[15px] font-medium text-[var(--color-text-primary)]">Privacy Settings</span>
+        <section className="card p-5 mb-4">
+          <div className="flex items-center gap-2.5 mb-3">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-steel-light)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <h3 className="section-label">Privacy</h3>
           </div>
           <Toggle value={isIncognito} onToggle={() => { const v = !isIncognito; setIsIncognito(v); autoSaveToggle('is_incognito', v); }} label="Incognito Mode" desc="Hide your profile from the radar" />
           <div className="section-divider my-1" />
@@ -503,10 +619,10 @@ export default function ProfilePage() {
         </section>
 
         {/* GDPR Compliance */}
-        <section className="card p-5 mb-6">
-          <div className="flex items-center gap-3 mb-4">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-steel-light)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            <span className="text-[15px] font-medium text-[var(--color-text-primary)]">GDPR Compliance</span>
+        <section className="card p-5 mb-4">
+          <div className="flex items-center gap-2.5 mb-4">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-steel-light)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <h3 className="section-label">Your Data</h3>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <button onClick={handleExportData} className="btn-secondary py-3 text-xs">
@@ -514,20 +630,36 @@ export default function ProfilePage() {
             </button>
             <button
               onClick={handleDeleteAccount}
-              className="py-3 text-xs font-semibold uppercase tracking-widest text-[var(--color-error)] border border-[var(--color-error)]/15 rounded-full hover:bg-[var(--color-error)]/5 transition-colors"
+              className={`py-3 text-xs font-semibold uppercase tracking-widest rounded-full transition-colors ${
+                showDeleteConfirm
+                  ? 'bg-[var(--color-error)] text-white'
+                  : 'text-[var(--color-error)] border border-[var(--color-error)]/15 hover:bg-[var(--color-error)]/5'
+              }`}
             >
-              Delete Account
+              {showDeleteConfirm ? 'Confirm Delete' : 'Delete Account'}
             </button>
           </div>
+          {showDeleteConfirm && (
+            <div className="mt-3 flex items-center gap-2">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-error)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <p className="text-[12px] text-[var(--color-error)]">This is permanent and cannot be undone.</p>
+              <button onClick={() => setShowDeleteConfirm(false)} className="text-[12px] text-[var(--color-steel-light)] underline ml-auto">Cancel</button>
+            </div>
+          )}
         </section>
 
         {/* Sign out */}
         <button
           onClick={handleLogout}
-          className="w-full mb-4 py-3 text-sm font-medium text-[var(--color-error)] hover:text-[var(--color-error)]/80 transition-colors"
+          className="w-full mb-4 py-3.5 text-sm font-medium text-[var(--color-steel-light)] hover:text-[var(--color-error)] transition-colors"
         >
-          Logout
+          Sign Out
         </button>
+
+        {/* App version */}
+        <p className="text-center text-[11px] text-[var(--color-steel-light)]/50 mb-6">
+          {APP_CONFIG.APP_NAME} · {APP_CONFIG.THEME.PRIMARY_LABEL}
+        </p>
       </div>
     </div>
   );

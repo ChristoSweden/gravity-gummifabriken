@@ -140,6 +140,15 @@ export default function OnboardingPage() {
         // signIn success — onAuthStateChange will handle profile upsert and redirect
         return;
       }
+      // Email delivery failure — account may still have been created
+      if (signUpErr.message?.toLowerCase().includes('email') && signUpErr.message?.toLowerCase().includes('error')) {
+        // Try signing in — if Supabase auto-confirms, the user exists and can log in
+        const { error: fallbackErr } = await supabase.auth.signInWithPassword({ email, password });
+        if (!fallbackErr) return; // Sign-in worked — onAuthStateChange handles the rest
+        setError('Account created but email delivery failed. Try logging in, or contact support if the issue persists.');
+        setSaving(false);
+        return;
+      }
       setError(signUpErr.message);
       setSaving(false);
       return;

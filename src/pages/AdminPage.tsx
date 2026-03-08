@@ -31,6 +31,15 @@ function StatCard({ label, value, accent }: { label: string; value: string | num
   );
 }
 
+function SkeletonStatCard() {
+  return (
+    <div className="card p-5 text-center">
+      <div className="skeleton h-8 w-12 mx-auto mb-2" />
+      <div className="skeleton h-3 w-16 mx-auto" />
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -40,6 +49,8 @@ export default function AdminPage() {
   const [results, setResults] = useState<InviteResult[]>([]);
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [analyticsError, setAnalyticsError] = useState(false);
 
   const isAdmin = APP_CONFIG.ADMIN_EMAILS.length > 0
     ? APP_CONFIG.ADMIN_EMAILS.includes(user?.email?.toLowerCase() || '')
@@ -50,14 +61,18 @@ export default function AdminPage() {
     fetchAnalytics();
   }, [isAdmin]);
 
-  const fetchAnalytics = async () => {
-    setLoadingAnalytics(true);
+  const fetchAnalytics = async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
+    else setLoadingAnalytics(true);
+    setAnalyticsError(false);
 
     const { data, error: rpcError } = await supabase.rpc('get_admin_analytics');
 
     if (rpcError || !data) {
       console.error('Admin analytics RPC failed:', rpcError);
+      setAnalyticsError(true);
       setLoadingAnalytics(false);
+      setRefreshing(false);
       return;
     }
 
@@ -100,16 +115,26 @@ export default function AdminPage() {
       activityByHour,
     });
     setLoadingAnalytics(false);
+    setRefreshing(false);
   };
 
   if (!isAdmin) {
     return (
       <div className="min-h-screen bg-[var(--color-bg-warm)] flex items-center justify-center p-6">
-        <div className="card p-10 text-center max-w-sm">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="card p-10 text-center max-w-sm"
+        >
+          <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-[var(--color-error)]/8 flex items-center justify-center">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-error)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+          </div>
           <p className="font-serif text-xl text-[var(--color-text-header)] mb-2">Access Denied</p>
           <p className="text-sm text-[var(--color-text-secondary)] mb-6">This page is for event organisers only.</p>
           <button onClick={() => navigate('/radar')} className="btn-primary px-8 py-3 text-sm">Back to Radar</button>
-        </div>
+        </motion.div>
       </div>
     );
   }
@@ -168,7 +193,7 @@ export default function AdminPage() {
           </div>
           <button
             onClick={() => navigate('/radar')}
-            className="w-10 h-10 flex items-center justify-center text-[var(--color-steel-light)] hover:text-[var(--color-text-primary)] transition-colors"
+            className="w-10 h-10 flex items-center justify-center text-[var(--color-steel-light)] hover:text-[var(--color-text-primary)] transition-colors rounded-lg"
             aria-label="Close"
           >
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
@@ -176,7 +201,7 @@ export default function AdminPage() {
         </header>
 
         {/* Tabs */}
-        <div className="flex gap-1 bg-[var(--color-sand-light)] rounded-2xl p-1 mb-8">
+        <div className="flex gap-1 bg-[var(--color-sand)]/40 rounded-2xl p-1 mb-8">
           {(['overview', 'invite'] as const).map((t) => (
             <button
               key={t}
@@ -196,10 +221,48 @@ export default function AdminPage() {
         {tab === 'overview' && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
             {loadingAnalytics ? (
-              <div className="text-center py-16">
-                <div className="w-10 h-10 rounded-full border-2 border-[var(--color-primary)] border-t-transparent animate-spin mx-auto mb-3" />
-                <p className="section-label">Loading analytics...</p>
-              </div>
+              /* Skeleton loading states */
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  {[1, 2, 3, 4].map(i => (
+                    <SkeletonStatCard key={i} />
+                  ))}
+                </div>
+                <div className="card p-5">
+                  <div className="skeleton h-3 w-24 mb-4" />
+                  <div className="space-y-3">
+                    <div>
+                      <div className="flex justify-between mb-1">
+                        <div className="skeleton h-3 w-24" />
+                        <div className="skeleton h-3 w-8" />
+                      </div>
+                      <div className="skeleton h-2 w-full rounded-full" />
+                    </div>
+                    <div>
+                      <div className="flex justify-between mb-1">
+                        <div className="skeleton h-3 w-28" />
+                        <div className="skeleton h-3 w-8" />
+                      </div>
+                      <div className="skeleton h-2 w-full rounded-full" />
+                    </div>
+                  </div>
+                </div>
+                <div className="card p-5">
+                  <div className="skeleton h-3 w-36 mb-4" />
+                  <div className="skeleton h-24 w-full rounded-lg" />
+                </div>
+              </>
+            ) : analyticsError ? (
+              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="card p-10 text-center">
+                <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-[var(--color-error)]/8 flex items-center justify-center">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-error)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" />
+                  </svg>
+                </div>
+                <h3 className="font-serif text-lg text-[var(--color-text-header)] mb-2">Failed to load analytics</h3>
+                <p className="text-sm text-[var(--color-text-secondary)] mb-5">Check that the admin RPC function is deployed.</p>
+                <button onClick={() => fetchAnalytics()} className="btn-primary px-6 py-2.5 text-xs">Retry</button>
+              </motion.div>
             ) : analytics && (
               <>
                 {/* Key Metrics */}
@@ -231,7 +294,7 @@ export default function AdminPage() {
                           {analytics.totalUsers > 0 ? Math.round((analytics.totalConnections / analytics.totalUsers) * 100) : 0}%
                         </span>
                       </div>
-                      <div className="h-2 bg-[var(--color-sand-light)] rounded-full overflow-hidden">
+                      <div className="h-2 bg-[var(--color-sand)]/50 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-[var(--color-primary)] rounded-full transition-all"
                           style={{ width: `${Math.min(100, analytics.totalUsers > 0 ? (analytics.totalConnections / analytics.totalUsers) * 100 : 0)}%` }}
@@ -245,7 +308,7 @@ export default function AdminPage() {
                           {analytics.totalUsers > 0 ? (analytics.totalMessages / analytics.totalUsers).toFixed(1) : '0'}
                         </span>
                       </div>
-                      <div className="h-2 bg-[var(--color-sand-light)] rounded-full overflow-hidden">
+                      <div className="h-2 bg-[var(--color-sand)]/50 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-[var(--color-accent)] rounded-full transition-all"
                           style={{ width: `${Math.min(100, analytics.totalUsers > 0 ? (analytics.totalMessages / analytics.totalUsers) * 5 : 0)}%` }}
@@ -326,8 +389,22 @@ export default function AdminPage() {
                 )}
 
                 {/* Refresh */}
-                <button onClick={fetchAnalytics} className="btn-secondary w-full py-3 text-xs">
-                  Refresh Analytics
+                <button
+                  onClick={() => fetchAnalytics(true)}
+                  disabled={refreshing}
+                  className="btn-secondary w-full py-3 text-xs flex items-center justify-center gap-2"
+                >
+                  {refreshing ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
+                      Refreshing...
+                    </>
+                  ) : (
+                    <>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>
+                      Refresh Analytics
+                    </>
+                  )}
                 </button>
               </>
             )}
@@ -361,7 +438,12 @@ export default function AdminPage() {
                   <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
                   Sending invites...
                 </>
-              ) : 'Send Invites'}
+              ) : (
+                <>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
+                  Send Invites
+                </>
+              )}
             </button>
 
             {results.length > 0 && (

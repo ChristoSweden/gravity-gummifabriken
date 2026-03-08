@@ -11,6 +11,7 @@ const ConversationsPage = lazy(() => import('./pages/ConversationsPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const ChatPage = lazy(() => import('./pages/ChatPage'));
 const AdminPage = lazy(() => import('./pages/AdminPage'));
+const EventsPage = lazy(() => import('./pages/EventsPage'));
 
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -192,6 +193,14 @@ function AppLayout() {
                   element={
                     <ProtectedRoute>
                       <ProfilePage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/events"
+                  element={
+                    <ProtectedRoute>
+                      <EventsPage />
                     </ProtectedRoute>
                   }
                 />

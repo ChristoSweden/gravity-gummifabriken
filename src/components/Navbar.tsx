@@ -5,6 +5,7 @@ import { APP_CONFIG } from '../config/appConfig';
 import logoUrl from '../assets/logo.png';
 import { supabase } from '../services/supabaseService';
 import { getDemoConnections, MOCK_ME } from '../services/mockData';
+import { haptic } from '../utils/haptics';
 
 export default function Navbar() {
   const { user, isDemo } = useAuth();
@@ -51,43 +52,18 @@ export default function Navbar() {
     if (isDemo) { setUnreadMsgCount(0); return; }
 
     const fetchUnread = async () => {
-      // Get the most recent messages received (not sent by us)
-      const { data: received } = await supabase
+      // Count distinct senders who have unread messages (read_at IS NULL)
+      const { data } = await supabase
         .from('messages')
-        .select('sender_id, created_at')
+        .select('sender_id')
         .eq('recipient_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(50);
+        .is('read_at', null);
 
-      if (!received || received.length === 0) { setUnreadMsgCount(0); return; }
+      if (!data || data.length === 0) { setUnreadMsgCount(0); return; }
 
-      // Get the most recent message we sent per conversation
-      const { data: sent } = await supabase
-        .from('messages')
-        .select('recipient_id, created_at')
-        .eq('sender_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      // For each unique sender, check if their latest message is newer than our latest reply
-      const latestSentTo: Record<string, string> = {};
-      (sent || []).forEach((m) => {
-        if (!latestSentTo[m.recipient_id]) latestSentTo[m.recipient_id] = m.created_at;
-      });
-
-      const latestReceivedFrom: Record<string, string> = {};
-      received.forEach((m) => {
-        if (!latestReceivedFrom[m.sender_id]) latestReceivedFrom[m.sender_id] = m.created_at;
-      });
-
-      let unread = 0;
-      for (const [senderId, receivedAt] of Object.entries(latestReceivedFrom)) {
-        const repliedAt = latestSentTo[senderId];
-        if (!repliedAt || new Date(receivedAt) > new Date(repliedAt)) {
-          unread++;
-        }
-      }
-      setUnreadMsgCount(unread);
+      // Count unique senders with unread messages
+      const uniqueSenders = new Set(data.map((m) => m.sender_id));
+      setUnreadMsgCount(uniqueSenders.size);
     };
 
     fetchUnread();
@@ -96,6 +72,7 @@ export default function Navbar() {
     const channel = supabase
       .channel('navbar-unread')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `recipient_id=eq.${user.id}` }, () => fetchUnread())
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages', filter: `recipient_id=eq.${user.id}` }, () => fetchUnread())
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
@@ -159,6 +136,15 @@ export default function Navbar() {
       ),
     },
     {
+      to: '/events',
+      label: 'Events',
+      icon: (active: boolean) => (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill={active ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+        </svg>
+      ),
+    },
+    {
       to: '/profile',
       label: 'Profile',
       icon: (active: boolean) => (
@@ -198,7 +184,7 @@ export default function Navbar() {
       </header>
 
       {/* Bottom tab bar */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 glass-effect border-t border-[var(--color-sand)]/60 safe-bottom">
+      <nav aria-label="Main navigation" className="fixed bottom-0 left-0 right-0 z-50 glass-effect border-t border-[var(--color-sand)]/60 safe-bottom">
         <div className="max-w-lg mx-auto flex justify-around items-center py-2">
           {tabs.map((tab) => {
             const active = isActive(tab.to);
@@ -206,6 +192,9 @@ export default function Navbar() {
               <Link
                 key={tab.to}
                 to={tab.to}
+                onClick={() => { if (!active) haptic('light'); }}
+                aria-label={`${tab.label}${tab.badge ? ` (${tab.badge} new)` : ''}`}
+                aria-current={active ? 'page' : undefined}
                 className={`relative flex flex-col items-center gap-0.5 px-4 py-1.5 transition-colors ${
                   active
                     ? 'text-[var(--color-primary)]'
@@ -223,6 +212,9 @@ export default function Navbar() {
                 <span className={`text-[10px] font-semibold ${active ? 'text-[var(--color-primary)]' : ''}`}>
                   {tab.label}
                 </span>
+                {active && (
+                  <span className="absolute -bottom-0.5 w-1 h-1 rounded-full bg-[var(--color-primary)]" />
+                )}
               </Link>
             );
           })}

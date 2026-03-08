@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabaseService';
 import { MOCK_USERS, getDemoMessages, addDemoMessage, isConnectedInDemo } from '../services/mockData';
 import { motion, AnimatePresence } from 'motion/react';
+import { haptic } from '../utils/haptics';
 
 interface Message {
   id: string;
@@ -39,6 +40,7 @@ export default function ChatPage() {
   const [isTyping, setIsTyping] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [showScrollDown, setShowScrollDown] = useState(false);
   const [reportReason, setReportReason] = useState('');
   const [reportDetails, setReportDetails] = useState('');
   const [reportSent, setReportSent] = useState(false);
@@ -181,6 +183,7 @@ export default function ChatPage() {
   const handleSendMessage = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!newMessage.trim() || !userId) return;
+    haptic('light');
 
     if (isDemo) {
       const newMsg = addDemoMessage(userId, newMessage.trim());
@@ -258,10 +261,16 @@ export default function ChatPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[var(--color-bg-warm)] flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 rounded-full border-2 border-[var(--color-primary)] border-t-transparent animate-spin mx-auto mb-4" />
-          <p className="section-label">Loading...</p>
+      <div className="min-h-screen bg-[var(--color-bg-warm)] flex flex-col">
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-[var(--color-sand)]">
+          <div className="skeleton w-8 h-8 rounded-full" />
+          <div className="skeleton w-10 h-10 rounded-full" />
+          <div className="skeleton h-5 w-28" />
+        </div>
+        <div className="flex-1 px-4 pt-6 space-y-4">
+          <div className="flex justify-start"><div className="skeleton h-10 w-48 rounded-2xl" /></div>
+          <div className="flex justify-end"><div className="skeleton h-10 w-36 rounded-2xl" /></div>
+          <div className="flex justify-start"><div className="skeleton h-10 w-56 rounded-2xl" /></div>
         </div>
       </div>
     );
@@ -371,12 +380,19 @@ export default function ChatPage() {
       </header>
 
       {/* ── Messages ── */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 content-container">
+      <div
+        className="flex-1 overflow-y-auto px-4 py-4 content-container"
+        onScroll={(e) => {
+          const el = e.currentTarget;
+          const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 200;
+          setShowScrollDown(!isNearBottom && messages.length > 5);
+        }}
+      >
         <div className="max-w-lg mx-auto">
           <AnimatePresence initial={false}>
             {messages.length === 0 && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center h-full py-24 gap-3">
-                <div className="w-14 h-14 rounded-full overflow-hidden">
+              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="flex flex-col items-center justify-center h-full py-24 gap-2">
+                <div className="w-16 h-16 rounded-full overflow-hidden mb-1 ring-2 ring-[var(--color-primary)]/15 ring-offset-2 ring-offset-[var(--color-bg-warm)]">
                   {recipientAvatar ? (
                     <img src={recipientAvatar} alt={recipientName} className="w-full h-full object-cover" />
                   ) : (
@@ -386,7 +402,15 @@ export default function ChatPage() {
                   )}
                 </div>
                 <p className="font-serif text-lg text-[var(--color-text-header)]">{recipientName}</p>
-                <p className="text-sm text-[var(--color-text-secondary)]">Start the conversation</p>
+                {recipientProfession && (
+                  <p className="text-[13px] text-[var(--color-text-secondary)]">{recipientProfession}</p>
+                )}
+                <div className="bg-[var(--color-success)]/8 text-[var(--color-success)] text-[12px] font-medium px-3 py-1.5 rounded-full border border-[var(--color-success)]/15 mt-2">
+                  You're now connected
+                </div>
+                <p className="text-[13px] text-[var(--color-steel-light)] mt-3 max-w-[220px] text-center leading-relaxed">
+                  Say hello — great conversations start with a simple message.
+                </p>
               </motion.div>
             )}
           </AnimatePresence>
@@ -485,6 +509,22 @@ export default function ChatPage() {
         </div>
       </div>
 
+      {/* ── Scroll to bottom button ── */}
+      <AnimatePresence>
+        {showScrollDown && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            onClick={() => scrollRef.current?.scrollIntoView({ behavior: 'smooth' })}
+            className="absolute bottom-28 right-4 w-10 h-10 bg-[var(--color-bg-card)] border border-[var(--color-sand)] rounded-full shadow-lg flex items-center justify-center text-[var(--color-steel-light)] hover:text-[var(--color-primary)] transition-colors z-10"
+            aria-label="Scroll to latest"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </motion.button>
+        )}
+      </AnimatePresence>
+
       {/* ── Send error toast ── */}
       <AnimatePresence>
         {sendError && (
@@ -492,6 +532,7 @@ export default function ChatPage() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 8 }}
+            role="alert" aria-live="assertive"
             className="absolute bottom-24 left-4 right-4 mx-auto max-w-lg bg-[var(--color-error)]/95 text-white text-sm text-center px-4 py-2.5 rounded-xl shadow-lg z-10"
           >
             {sendError}
@@ -506,8 +547,10 @@ export default function ChatPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            role="dialog" aria-modal="true" aria-label={`Report ${recipientName}`}
             className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center"
             onClick={() => setShowReportModal(false)}
+            onKeyDown={(e) => e.key === 'Escape' && setShowReportModal(false)}
           >
             <motion.div
               initial={{ y: 40, opacity: 0 }}
@@ -577,6 +620,11 @@ export default function ChatPage() {
               aria-label="Message"
             />
           </div>
+          {newMessage.length > 4500 && (
+            <span className={`text-[10px] font-mono flex-shrink-0 self-end mb-2 ${newMessage.length > 4900 ? 'text-[var(--color-error)]' : 'text-[var(--color-steel-light)]'}`}>
+              {5000 - newMessage.length}
+            </span>
+          )}
           <button
             onClick={() => handleSendMessage()}
             disabled={!newMessage.trim()}

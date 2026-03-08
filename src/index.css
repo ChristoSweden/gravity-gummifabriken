@@ -20,6 +20,8 @@
   --color-text-secondary: #6B6560;
   --color-success: #3D8B5F;
   --color-error: #C24B3B;
+  --color-steel-dark: #2A2522;
+  --color-text-on-accent: #0D0B09;
   --radius-sm: 0.75rem;
   --radius-md: 1rem;
   --radius-lg: 1.5rem;
@@ -39,6 +41,8 @@
   --color-text-secondary: #A09890;
   --color-steel: #A09890;
   --color-steel-light: #7A7572;
+  --color-steel-dark: #A09890;
+  --color-text-on-accent: #0D0B09;
 }
 
 [data-theme="dark"] .glass-effect {
@@ -90,6 +94,8 @@
   --color-text-secondary: #6B6560;
   --color-success: #3D8B5F;
   --color-error: #C24B3B;
+  --color-steel-dark: #2A2522;
+  --color-text-on-accent: #0D0B09;
 
   --shadow-sm: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06);
   --shadow-md: 0 4px 12px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
@@ -303,6 +309,58 @@
   transform-style: preserve-3d;
 }
 
+/* ─── Delight Animations ─── */
+@keyframes successCheck {
+  0% { transform: scale(0) rotate(-45deg); opacity: 0; }
+  50% { transform: scale(1.2) rotate(0deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+@keyframes celebratePop {
+  0% { transform: scale(0.3); opacity: 0; }
+  50% { transform: scale(1.08); }
+  70% { transform: scale(0.96); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes confettiFall {
+  0% { transform: translateY(-10px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(60px) rotate(360deg); opacity: 0; }
+}
+
+@keyframes shimmerGold {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes bounceIn {
+  0% { transform: scale(0.3); opacity: 0; }
+  50% { transform: scale(1.05); }
+  70% { transform: scale(0.9); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.animate-success-check {
+  animation: successCheck 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-celebrate-pop {
+  animation: celebratePop 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-bounce-in {
+  animation: bounceIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.shimmer-gold {
+  background: linear-gradient(90deg, var(--color-accent) 25%, var(--color-accent-light) 50%, var(--color-accent) 75%);
+  background-size: 200% 100%;
+  animation: shimmerGold 2s ease-in-out infinite;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
 .shadow-pip {
   box-shadow: 0 0 10px rgba(184,115,51,0.4), 0 2px 4px rgba(0,0,0,0.1);
 }
@@ -321,6 +379,37 @@
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+}
+
+/* ─── Skeleton loading shimmer ─── */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--color-sand) 25%, var(--color-sand-light) 50%, var(--color-sand) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--radius-md);
+}
+
+[data-theme="dark"] .skeleton {
+  background: linear-gradient(90deg, #1A1714 25%, #2A2522 50%, #1A1714 75%);
+  background-size: 200% 100%;
+}
+
+/* ─── Reduced motion ─── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .skeleton {
+    animation: none;
+    background: var(--color-sand);
+  }
 }
 
 /* Hide scrollbars for horizontal scroll containers */
