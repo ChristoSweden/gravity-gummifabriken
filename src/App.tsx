@@ -314,7 +314,7 @@ function AppLayout() {
   const showNavbar = !isLanding && !isOnboarding && !isLogin && !isChatDetail && !!user;
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg-warm)] font-sans text-[var(--color-text-primary)] overflow-x-hidden">
+    <div className="min-h-screen bg-[#0D0B09] font-sans text-[#E8E0D4] overflow-x-hidden">
       <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-[999] focus:top-2 focus:left-2 focus:bg-[var(--color-primary)] focus:text-white focus:px-4 focus:py-2 focus:rounded-lg focus:text-sm focus:font-semibold">
         Skip to content
       </a>
@@ -333,10 +333,10 @@ function AppLayout() {
             id="main-content"
           >
             <Suspense fallback={
-              <div className="min-h-screen flex items-center justify-center">
+              <div className="min-h-screen flex items-center justify-center bg-[#0D0B09]">
                 <div className="text-center">
                   <div className="w-10 h-10 rounded-full border-2 border-[var(--color-primary)] border-t-transparent animate-spin mx-auto mb-3" />
-                  <p className="text-sm text-[var(--color-text-secondary)]">Loading...</p>
+                  <p className="text-sm text-[#7A7572]">Loading...</p>
                 </div>
               </div>
             }>

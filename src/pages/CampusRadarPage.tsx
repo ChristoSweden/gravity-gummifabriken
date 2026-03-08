@@ -669,29 +669,39 @@ export default function CampusRadarPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[var(--color-bg-warm)] pb-28">
+      <div className="min-h-screen bg-[#0D0B09] pb-28">
         <div className="max-w-lg mx-auto px-6 pt-6">
+          {/* Skeleton header */}
+          <div className="h-7 w-24 rounded-lg bg-[#1A1714] mb-5" style={{ animation: 'shimmer 1.5s ease-in-out infinite', backgroundImage: 'linear-gradient(90deg, #1A1714 25%, #2A2522 50%, #1A1714 75%)', backgroundSize: '200% 100%' }} />
           {/* Skeleton status row */}
           <div className="flex items-center justify-between mb-6">
-            <div className="skeleton h-4 w-20 rounded-full" />
-            <div className="skeleton h-7 w-24 rounded-full" />
+            <div className="h-4 w-20 rounded-full bg-[#1A1714]" />
+            <div className="h-7 w-24 rounded-full border border-[#2A2522] bg-[#1A1714]" />
           </div>
           {/* Skeleton radar circle */}
-          <div className="w-80 h-80 mx-auto mb-12 rounded-full skeleton opacity-40" />
+          <div className="w-[340px] h-[340px] mx-auto mb-6 rounded-full bg-[#1A1714]/40 border border-[var(--color-primary)]/10" style={{ animation: 'shimmer 1.5s ease-in-out infinite', backgroundImage: 'linear-gradient(90deg, rgba(26,23,20,0.4) 25%, rgba(42,37,34,0.3) 50%, rgba(26,23,20,0.4) 75%)', backgroundSize: '200% 100%' }} />
           {/* Skeleton section header */}
-          <div className="flex items-center justify-between mb-4">
-            <div className="skeleton h-3 w-36" />
-            <div className="skeleton h-3 w-16" />
+          <div className="flex items-center justify-between mb-3">
+            <div className="h-3 w-36 rounded bg-[#1A1714]" />
+            <div className="h-3 w-16 rounded bg-[#1A1714]" />
           </div>
-          {/* Skeleton cards */}
-          {[1, 2, 3].map(i => (
-            <div key={i} className="flex items-center gap-4 p-4 mb-3 bg-[var(--color-bg-card)] border border-[var(--color-sand)] rounded-2xl">
-              <div className="skeleton w-12 h-12 rounded-full flex-shrink-0" />
+          {/* Skeleton scan card */}
+          <div className="rounded-3xl p-6 mb-8 bg-[#1A1714] border border-[#2A2522]" style={{ animation: 'shimmer 1.5s ease-in-out infinite', backgroundImage: 'linear-gradient(90deg, #1A1714 25%, #1E1B17 50%, #1A1714 75%)', backgroundSize: '200% 100%' }}>
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-[#2A2522]" />
+              <div className="h-6 w-24 rounded bg-[#2A2522]" />
+              <div className="h-3 w-48 rounded bg-[#2A2522]" />
+            </div>
+          </div>
+          {/* Skeleton match cards */}
+          {[1, 2].map(i => (
+            <div key={i} className="flex items-center gap-4 p-4 mb-3 bg-[#1A1714] border border-[#2A2522] rounded-2xl">
+              <div className="w-12 h-12 rounded-full bg-[#2A2522] flex-shrink-0" />
               <div className="flex-1 space-y-2">
-                <div className="skeleton h-4 w-32" />
-                <div className="skeleton h-3 w-20" />
+                <div className="h-4 w-32 rounded bg-[#2A2522]" />
+                <div className="h-3 w-20 rounded bg-[#2A2522]" />
               </div>
-              <div className="skeleton h-8 w-8 rounded-full" />
+              <div className="h-8 w-8 rounded-full bg-[#2A2522]" />
             </div>
           ))}
         </div>
