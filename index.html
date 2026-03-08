@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#FAF7F2" />
+    <meta name="theme-color" content="#0D0B09" />
     <meta name="description" content="Gravity — Proximity-based professional networking at Gummifabriken. Discover who's nearby, connect over shared interests, and grow your network." />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -31,11 +31,12 @@
   <body>
     <div id="root"></div>
     <script>
-      // Apply dark mode before first paint to avoid flash
+      // Apply dark mode by default (unless user explicitly chose light)
       var t = localStorage.getItem('gravity-theme');
-      if (t === 'dark') {
+      if (t !== 'light') {
         document.documentElement.setAttribute('data-theme', 'dark');
-        document.querySelector('meta[name="theme-color"]').content = '#0D0B09';
+      } else {
+        document.querySelector('meta[name="theme-color"]').content = '#FAF7F2';
       }
     </script>
     <script type="module" src="/src/main.tsx"></script>

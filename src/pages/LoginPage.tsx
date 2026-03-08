@@ -86,7 +86,7 @@ export default function LoginPage() {
   // Password setup screen for users arriving via magic link / password recovery
   if (needsPasswordSetup) {
     return (
-      <div className="min-h-screen bg-[var(--color-bg-warm)] flex flex-col">
+      <div className="min-h-screen bg-[#0D0B09] flex flex-col">
         <div className="flex items-center justify-center px-6 py-5">
           <div className="flex items-center gap-2">
             <img src={logoUrl} alt="Gravity" className="w-7 h-7 rounded-full object-cover" />
@@ -168,7 +168,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg-warm)] flex flex-col">
+    <div className="min-h-screen bg-[#0D0B09] flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-5 max-w-lg mx-auto w-full">
         <button

@@ -174,7 +174,7 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg-warm)] flex flex-col">
+    <div className="min-h-screen bg-[#0D0B09] flex flex-col">
       {/* Top bar: back arrow + brand */}
       <div className="flex items-center justify-between px-6 py-5 max-w-lg mx-auto w-full">
         <button
@@ -408,7 +408,7 @@ export default function OnboardingPage() {
                 </div>
               )}
 
-              <div className="bg-[var(--color-mist)] border border-[var(--color-sand)] rounded-2xl px-4 py-3.5 flex items-start gap-3">
+              <div className="bg-[#151310] border border-[#2A2522] rounded-2xl px-4 py-3.5 flex items-start gap-3">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 mt-0.5"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
                 <p className="text-[13px] text-[var(--color-text-secondary)] leading-relaxed">
                   Sharing your distance enables serendipity. Your exact location is never shared.
@@ -420,7 +420,7 @@ export default function OnboardingPage() {
       </div>
 
       {/* Sticky bottom bar */}
-      <div className="fixed bottom-0 left-0 right-0 glass-effect border-t border-[var(--color-sand)]/60 px-6 py-5 safe-bottom z-50">
+      <div className="fixed bottom-0 left-0 right-0 border-t border-[#2A2522]/60 px-6 py-5 safe-bottom z-50" style={{ background: 'rgba(13,11,9,0.92)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
         <div className="max-w-lg mx-auto flex flex-col gap-3">
           {step < totalSteps ? (
             <button

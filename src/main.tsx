@@ -10,10 +10,12 @@ import * as ReactDOMClient from 'react-dom/client';
 // Install global error & unhandled rejection handlers
 installGlobalErrorHandlers();
 
-// Apply saved theme preference
+// Apply saved theme preference (dark by default)
 const savedTheme = localStorage.getItem('gravity-theme');
-if (savedTheme) {
-  document.documentElement.setAttribute('data-theme', savedTheme);
+if (savedTheme === 'light') {
+  document.documentElement.setAttribute('data-theme', 'light');
+} else {
+  document.documentElement.setAttribute('data-theme', 'dark');
 }
 
 // Register service worker for offline support and push notifications
