@@ -336,7 +336,13 @@ export default function CampusRadarPage() {
       setEventName(null);
     }
 
+    console.log('[Radar] Query returned', profiles?.length ?? 0, 'profiles, error:', pError);
+    if (profiles) {
+      profiles.forEach((p: any) => console.log('[Radar]   -', p.id.slice(0, 8), p.full_name, '| present:', p.is_present, '| interests:', p.interests?.length ?? 0, '| incognito:', p.is_incognito, '| last_seen:', p.last_seen_at));
+    }
+
     if (pError || !profiles) {
+      console.error('[Radar] Query failed:', pError);
       setError('Unable to load nearby profiles. Retrying...');
       setLoading(false);
       return;
@@ -352,6 +358,7 @@ export default function CampusRadarPage() {
     const me = profiles.find((p: any) => p.id === user.id);
     // Show all fetched users who completed onboarding (query already handles freshness filtering)
     const others = profiles.filter((p: any) => p.id !== user.id && !p.is_incognito && !blockedIds.has(p.id) && p.interests?.length >= 3);
+    console.log('[Radar] After filtering: me =', me?.full_name ?? 'NOT FOUND', '| visible others:', others.length, others.map((p: any) => p.full_name));
     setUserProfile(me || null);
 
     {
@@ -483,12 +490,23 @@ export default function CampusRadarPage() {
       presenceChecked.current = true;
       if (user && !isDemo) {
         const now = new Date().toISOString();
-        supabase.rpc('update_presence', { p_is_present: true, p_last_seen_at: now }).then(() => {}, () => {});
+        console.log('[Radar] Auto-check-in: calling update_presence for', user.id);
+        supabase.rpc('update_presence', { p_is_present: true, p_last_seen_at: now }).then(
+          (res) => {
+            if (res.error) console.error('[Radar] update_presence RPC error:', res.error);
+            else console.log('[Radar] update_presence succeeded — now fetching data');
+            fetchData(); // Re-fetch AFTER presence is confirmed in DB
+          },
+          (err) => {
+            console.error('[Radar] update_presence network error:', err);
+            fetchData(); // Still fetch even on failure
+          }
+        );
       }
       setPresenceStatus('present');
       // Still attempt GPS silently for proximity data, but don't gate on it
       checkPresence().catch(() => {});
-      fetchData();
+      fetchData(); // Initial fetch (may not see other user yet — the post-RPC fetch above catches that)
     } else {
       fetchData();
     }
@@ -503,9 +521,16 @@ export default function CampusRadarPage() {
 
     const channel = supabase
       .channel('radar-profiles')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, debouncedFetch)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'connections' }, debouncedFetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, (payload) => {
+        console.log('[Radar] Realtime: profiles change detected', payload.eventType, payload.new && (payload.new as any).id?.slice(0, 8));
+        debouncedFetch();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'connections' }, (payload) => {
+        console.log('[Radar] Realtime: connections change detected', payload.eventType);
+        debouncedFetch();
+      })
       .subscribe((status) => {
+        console.log('[Radar] Realtime channel status:', status);
         if (status === 'CHANNEL_ERROR') {
           // Auto-reconnect after channel error
           setTimeout(() => { supabase.removeChannel(channel); fetchData(); }, 5000);
