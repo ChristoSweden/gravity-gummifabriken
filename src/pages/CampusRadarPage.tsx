@@ -107,8 +107,6 @@ export default function CampusRadarPage() {
   const [invitationMessage, setInvitationMessage] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [debugLog, setDebugLog] = useState<string[]>([]);
-  const addDebug = (msg: string) => setDebugLog(prev => [...prev.slice(-9), `${new Date().toLocaleTimeString()}: ${msg}`]);
   const [pendingReviewRequest, setPendingReviewRequest] = useState<(Profile & { connectionId: string; message?: string }) | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [presenceStatus, setPresenceStatus] = useState<PresenceStatus>('checking');
@@ -170,10 +168,7 @@ export default function CampusRadarPage() {
           if (atVenue) {
             const now = new Date().toISOString();
             try {
-              await supabase.rpc('update_presence', {
-                p_is_present: true,
-                p_last_seen_at: now,
-              });
+              await supabase.from('profiles').update({ is_present: true, last_seen_at: now }).eq('id', user!.id);
             } catch (err) { captureError(err, { context: 'CampusRadar.updatePresence' }); }
           }
           resolve(atVenue);
@@ -200,10 +195,7 @@ export default function CampusRadarPage() {
       setPresenceStatus('present');
       const now = new Date().toISOString();
       try {
-        await supabase.rpc('update_presence', {
-          p_is_present: true,
-          p_last_seen_at: now,
-        });
+        await supabase.from('profiles').update({ is_present: true, last_seen_at: now }).eq('id', user!.id);
       } catch (err) { captureError(err, { context: 'CampusRadar.wifiPresence' }); }
       return true;
     }
@@ -335,10 +327,7 @@ export default function CampusRadarPage() {
       setEventName(null);
     }
 
-    addDebug(`query: ${profiles?.length ?? 0} profiles, error=${pError ? pError.message : 'none'}`);
-
     if (pError || !profiles) {
-      addDebug(`QUERY FAILED: ${JSON.stringify(pError)}`);
       setError('Unable to load nearby profiles. Retrying...');
       setLoading(false);
       return;
@@ -354,7 +343,6 @@ export default function CampusRadarPage() {
     const me = profiles.find((p: any) => p.id === user.id);
     // Show all fetched users who completed onboarding (3+ interests)
     const others = profiles.filter((p: any) => p.id !== user.id && !p.is_incognito && !blockedIds.has(p.id) && p.interests?.length >= 3);
-    addDebug(`me=${me?.full_name ?? 'NOT FOUND'} | others=${others.length} [${others.map((p: any) => p.full_name).join(', ')}]`);
     setUserProfile(me || null);
 
     {
@@ -426,40 +414,41 @@ export default function CampusRadarPage() {
     }
 
     // Activity feed: recent check-ins and connections (last 2 hours)
-    // Uses RPC function to bypass RLS and show venue-wide activity
     if (!isDemo) {
-      const { data: feedData } = await supabase.rpc('get_activity_feed');
-      if (feedData) {
-        const raw = feedData as {
-          recent_presence: { full_name: string; last_seen_at: string }[];
-          recent_connections: { created_at: string }[];
-        };
-        const feed: typeof activityFeed = [];
-        (raw.recent_presence || []).forEach((p) => {
-          const mins = Math.floor((Date.now() - new Date(p.last_seen_at).getTime()) / 60000);
-          feed.push({
-            id: `join-${p.full_name}-${p.last_seen_at}`,
-            text: `${p.full_name?.split(' ')[0] || 'Someone'} checked in`,
-            time: mins < 1 ? 'just now' : mins < 60 ? `${mins}m ago` : `${Math.floor(mins / 60)}h ago`,
-            type: 'join',
+      try {
+        const { data: feedData } = await supabase.rpc('get_activity_feed');
+        if (feedData) {
+          const raw = feedData as {
+            recent_presence: { full_name: string; last_seen_at: string }[];
+            recent_connections: { created_at: string }[];
+          };
+          const feed: typeof activityFeed = [];
+          (raw.recent_presence || []).forEach((p) => {
+            const mins = Math.floor((Date.now() - new Date(p.last_seen_at).getTime()) / 60000);
+            feed.push({
+              id: `join-${p.full_name}-${p.last_seen_at}`,
+              text: `${p.full_name?.split(' ')[0] || 'Someone'} checked in`,
+              time: mins < 1 ? 'just now' : mins < 60 ? `${mins}m ago` : `${Math.floor(mins / 60)}h ago`,
+              type: 'join',
+            });
           });
-        });
-        (raw.recent_connections || []).forEach((c) => {
-          const mins = Math.floor((Date.now() - new Date(c.created_at).getTime()) / 60000);
-          feed.push({
-            id: `conn-${c.created_at}`,
-            text: 'New connection made',
-            time: mins < 1 ? 'just now' : mins < 60 ? `${mins}m ago` : `${Math.floor(mins / 60)}h ago`,
-            type: 'connect',
+          (raw.recent_connections || []).forEach((c) => {
+            const mins = Math.floor((Date.now() - new Date(c.created_at).getTime()) / 60000);
+            feed.push({
+              id: `conn-${c.created_at}`,
+              text: 'New connection made',
+              time: mins < 1 ? 'just now' : mins < 60 ? `${mins}m ago` : `${Math.floor(mins / 60)}h ago`,
+              type: 'connect',
+            });
           });
-        });
-        feed.sort((a, b) => {
-          const aMs = a.time === 'just now' ? 0 : parseInt(a.time);
-          const bMs = b.time === 'just now' ? 0 : parseInt(b.time);
-          return aMs - bMs;
-        });
-        setActivityFeed(feed.slice(0, 5));
-      }
+          feed.sort((a, b) => {
+            const aMs = a.time === 'just now' ? 0 : parseInt(a.time);
+            const bMs = b.time === 'just now' ? 0 : parseInt(b.time);
+            return aMs - bMs;
+          });
+          setActivityFeed(feed.slice(0, 5));
+        }
+      } catch { /* RPC may not exist yet — activity feed is non-critical */ }
     }
 
     setLoading(false);
@@ -481,28 +470,22 @@ export default function CampusRadarPage() {
   useEffect(() => {
     // Auto-check-in on radar mount then fetch data.
     const init = async () => {
-      addDebug(`init: user=${user?.id?.slice(0, 8) ?? 'NULL'} isDemo=${isDemo}`);
-      if (!presenceChecked.current) {
-        presenceChecked.current = true;
-        setPresenceStatus('present');
+      try {
+        if (!presenceChecked.current) {
+          presenceChecked.current = true;
+          setPresenceStatus('present');
 
-        if (user && !isDemo) {
-          const now = new Date().toISOString();
-          const rpcResult = await supabase.rpc('update_presence', { p_is_present: true, p_last_seen_at: now });
-          if (rpcResult.error) {
-            addDebug(`RPC failed: ${rpcResult.error.message} — trying direct update`);
-            const directResult = await supabase.from('profiles').update({
+          if (user && !isDemo) {
+            const now = new Date().toISOString();
+            await supabase.from('profiles').update({
               is_present: true,
               last_seen_at: now,
             }).eq('id', user.id);
-            addDebug(`direct update: ${directResult.error ? directResult.error.message : 'OK'}`);
-          } else {
-            addDebug('check-in OK via RPC');
           }
-        }
 
-        checkPresence().catch(() => {});
-      }
+          checkPresence().catch(() => {});
+        }
+      } catch { /* check-in failed — still fetch data */ }
 
       await fetchData();
     };
@@ -532,14 +515,11 @@ export default function CampusRadarPage() {
     }, 15_000);
 
     // Presence heartbeat every 2 minutes
-    if (!isDemo) {
+    if (!isDemo && user) {
       heartbeatTimer.current = setInterval(() => {
         if (document.visibilityState === 'visible') {
           const now = new Date().toISOString();
-          supabase.rpc('update_presence', { p_is_present: true, p_last_seen_at: now }).then(
-            (res) => { if (res.error) supabase.from('profiles').update({ is_present: true, last_seen_at: now }).eq('id', user!.id); },
-            () => {}
-          );
+          supabase.from('profiles').update({ is_present: true, last_seen_at: now }).eq('id', user.id);
         }
       }, 2 * 60 * 1000);
     }
@@ -644,16 +624,17 @@ export default function CampusRadarPage() {
 
     if (!user) return;
 
-    const { error: rpcError } = await supabase.rpc('send_connection_request', {
-      p_recipient_id: recipientId,
-      p_message: invitationMessage.trim() || null,
+    // Insert connection directly (RPC may not exist on this Supabase instance)
+    const { error: connError } = await supabase.from('connections').insert({
+      requester_id: user.id,
+      recipient_id: recipientId,
     });
 
-    if (rpcError) {
+    if (connError) {
       let msg = 'Failed to send request. Please try again.';
-      if (rpcError.message.includes('duplicate') || rpcError.message.includes('already exists')) {
+      if (connError.message.includes('duplicate') || connError.message.includes('already exists') || connError.message.includes('unique') || connError.message.includes('reverse')) {
         msg = 'Connection already exists.';
-      } else if (rpcError.message.includes('rate') || rpcError.message.includes('limit') || rpcError.message.includes('too many')) {
+      } else if (connError.message.includes('rate') || connError.message.includes('limit') || connError.message.includes('too many')) {
         msg = 'Slow down — too many requests. Try again in a few minutes.';
       }
       setError(msg);
@@ -661,6 +642,15 @@ export default function CampusRadarPage() {
       setSelectedMatch(null);
       setInvitationMessage('');
       return;
+    }
+
+    // Send icebreaker message if provided
+    if (invitationMessage.trim()) {
+      await supabase.from('messages').insert({
+        sender_id: user.id,
+        recipient_id: recipientId,
+        content: invitationMessage.trim(),
+      });
     }
 
     setConnectionStatuses((prev) => ({ ...prev, [recipientId]: 'pending_sent' }));
@@ -778,14 +768,6 @@ export default function CampusRadarPage() {
 
         {/* ── Header ── */}
         <h1 className="font-serif text-2xl text-white mb-5 tracking-tight">Gravity.</h1>
-
-        {/* ── Debug overlay (TEMPORARY) ── */}
-        {debugLog.length > 0 && (
-          <div className="mb-4 bg-black/80 border border-yellow-600/40 rounded-xl px-3 py-2 text-[10px] font-mono text-yellow-300 space-y-0.5 max-h-40 overflow-auto">
-            <div className="text-yellow-500 font-bold mb-1">DEBUG (remove later)</div>
-            {debugLog.map((line, i) => <div key={i}>{line}</div>)}
-          </div>
-        )}
 
         {/* ── Event mode banner ── */}
         {eventName && (
