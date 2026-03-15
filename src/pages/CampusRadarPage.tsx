@@ -324,25 +324,17 @@ export default function CampusRadarPage() {
         profiles = [];
       }
     } else {
-      // Default venue mode: show users who are checked in OR recently active (4-hour window).
-      // Broader window ensures the radar feels alive for demos and early adoption.
-      const stalenessCutoff = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
+      // Fetch ALL non-incognito profiles who completed onboarding.
+      // No presence/staleness filter — guarantees users see each other.
       const result = await supabase
         .from('profiles')
-        .select('id, full_name, interests, profession, company, avatar_url, is_incognito, is_present, last_seen_at')
-        .or(`id.eq.${user.id},is_present.eq.true,last_seen_at.gte.${stalenessCutoff}`);
+        .select('id, full_name, interests, profession, company, avatar_url, is_incognito, is_present, last_seen_at');
       profiles = result.data;
       pError = result.error;
       setEventName(null);
     }
 
-    console.log('[Radar] Query returned', profiles?.length ?? 0, 'profiles, error:', pError);
-    if (profiles) {
-      profiles.forEach((p: any) => console.log('[Radar]   -', p.id.slice(0, 8), p.full_name, '| present:', p.is_present, '| interests:', p.interests?.length ?? 0, '| incognito:', p.is_incognito, '| last_seen:', p.last_seen_at));
-    }
-
     if (pError || !profiles) {
-      console.error('[Radar] Query failed:', pError);
       setError('Unable to load nearby profiles. Retrying...');
       setLoading(false);
       return;
@@ -356,9 +348,8 @@ export default function CampusRadarPage() {
     const blockedIds = new Set((blocks || []).map(b => b.blocked_id));
 
     const me = profiles.find((p: any) => p.id === user.id);
-    // Show all fetched users who completed onboarding (query already handles freshness filtering)
+    // Show all fetched users who completed onboarding (3+ interests)
     const others = profiles.filter((p: any) => p.id !== user.id && !p.is_incognito && !blockedIds.has(p.id) && p.interests?.length >= 3);
-    console.log('[Radar] After filtering: me =', me?.full_name ?? 'NOT FOUND', '| visible others:', others.length, others.map((p: any) => p.full_name));
     setUserProfile(me || null);
 
     {
@@ -483,84 +474,81 @@ export default function CampusRadarPage() {
   }, []);
 
   useEffect(() => {
-    // Auto-check-in on radar mount — always mark present so the app works
-    // for demos and testing without requiring physical venue proximity.
-    // GPS/WiFi still runs silently for proximity labels.
-    if (!presenceChecked.current) {
-      presenceChecked.current = true;
-      if (user && !isDemo) {
-        const now = new Date().toISOString();
-        console.log('[Radar] Auto-check-in: calling update_presence for', user.id);
-        supabase.rpc('update_presence', { p_is_present: true, p_last_seen_at: now }).then(
-          (res) => {
-            if (res.error) console.error('[Radar] update_presence RPC error:', res.error);
-            else console.log('[Radar] update_presence succeeded — now fetching data');
-            fetchData(); // Re-fetch AFTER presence is confirmed in DB
-          },
-          (err) => {
-            console.error('[Radar] update_presence network error:', err);
-            fetchData(); // Still fetch even on failure
-          }
-        );
-      }
-      setPresenceStatus('present');
-      // Still attempt GPS silently for proximity data, but don't gate on it
-      checkPresence().catch(() => {});
-      fetchData(); // Initial fetch (may not see other user yet — the post-RPC fetch above catches that)
-    } else {
-      fetchData();
-    }
+    // Auto-check-in on radar mount then fetch data.
+    const init = async () => {
+      if (!presenceChecked.current) {
+        presenceChecked.current = true;
+        setPresenceStatus('present');
 
-    // Debounce realtime refetches: with 100 users, rapid profile/connection
-    // changes would otherwise trigger a flood of simultaneous DB queries.
+        if (user && !isDemo) {
+          const now = new Date().toISOString();
+          // Try RPC first, fall back to direct update if RPC doesn't exist
+          const rpcResult = await supabase.rpc('update_presence', { p_is_present: true, p_last_seen_at: now });
+          if (rpcResult.error) {
+            // RPC might not exist — fall back to direct profile update
+            await supabase.from('profiles').update({
+              is_present: true,
+              last_seen_at: now,
+            }).eq('id', user.id);
+          }
+        }
+
+        // GPS/WiFi runs silently in the background for proximity data
+        checkPresence().catch(() => {});
+      }
+
+      // Fetch data AFTER check-in is confirmed in DB
+      await fetchData();
+    };
+    init();
+
+    // Debounce realtime refetches
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     const debouncedFetch = () => {
       if (debounceTimer) clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => fetchData(), 800);
     };
 
+    // Realtime subscription for live updates
     const channel = supabase
       .channel('radar-profiles')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, (payload) => {
-        console.log('[Radar] Realtime: profiles change detected', payload.eventType, payload.new && (payload.new as any).id?.slice(0, 8));
-        debouncedFetch();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'connections' }, (payload) => {
-        console.log('[Radar] Realtime: connections change detected', payload.eventType);
-        debouncedFetch();
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, debouncedFetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'connections' }, debouncedFetch)
       .subscribe((status) => {
-        console.log('[Radar] Realtime channel status:', status);
         if (status === 'CHANNEL_ERROR') {
-          // Auto-reconnect after channel error
           setTimeout(() => { supabase.removeChannel(channel); fetchData(); }, 5000);
         }
       });
 
-    // Presence heartbeat: WiFi-first, GPS fallback — every 2 minutes while page is visible
+    // Polling fallback: re-fetch every 15s in case realtime isn't working
+    const pollTimer = setInterval(() => {
+      if (document.visibilityState === 'visible') fetchData();
+    }, 15_000);
+
+    // Presence heartbeat every 2 minutes
     if (!isDemo) {
       heartbeatTimer.current = setInterval(() => {
         if (document.visibilityState === 'visible') {
-          checkPresence().then(() => debouncedFetch());
+          const now = new Date().toISOString();
+          supabase.rpc('update_presence', { p_is_present: true, p_last_seen_at: now }).then(
+            (res) => { if (res.error) supabase.from('profiles').update({ is_present: true, last_seen_at: now }).eq('id', user!.id); },
+            () => {}
+          );
         }
       }, 2 * 60 * 1000);
     }
 
-    // Refresh data when app comes back to foreground + departure detection
+    // Refresh data when app comes back to foreground
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
-        // Coming back to foreground
         const wasHiddenMs = hiddenSince.current ? Date.now() - hiddenSince.current : 0;
         hiddenSince.current = null;
-
         if (wasHiddenMs > 5 * 60 * 1000 && !isDemo) {
-          // Gone for >5 min — re-check presence (they may have left the venue)
           checkPresence().then(() => fetchData());
         } else {
           debouncedFetch();
         }
       } else {
-        // Going to background — record the time
         hiddenSince.current = Date.now();
       }
     };
@@ -568,6 +556,7 @@ export default function CampusRadarPage() {
 
     return () => {
       if (debounceTimer) clearTimeout(debounceTimer);
+      clearInterval(pollTimer);
       if (heartbeatTimer.current) clearInterval(heartbeatTimer.current);
       supabase.removeChannel(channel);
       document.removeEventListener('visibilitychange', handleVisibility);
