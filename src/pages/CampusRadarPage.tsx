@@ -107,6 +107,8 @@ export default function CampusRadarPage() {
   const [invitationMessage, setInvitationMessage] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [debugLog, setDebugLog] = useState<string[]>([]);
+  const addDebug = (msg: string) => setDebugLog(prev => [...prev.slice(-9), `${new Date().toLocaleTimeString()}: ${msg}`]);
   const [pendingReviewRequest, setPendingReviewRequest] = useState<(Profile & { connectionId: string; message?: string }) | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [presenceStatus, setPresenceStatus] = useState<PresenceStatus>('checking');
@@ -324,8 +326,7 @@ export default function CampusRadarPage() {
         profiles = [];
       }
     } else {
-      // Fetch ALL non-incognito profiles who completed onboarding.
-      // No presence/staleness filter — guarantees users see each other.
+      // Fetch ALL profiles — no presence/staleness filter.
       const result = await supabase
         .from('profiles')
         .select('id, full_name, interests, profession, company, avatar_url, is_incognito, is_present, last_seen_at');
@@ -334,7 +335,10 @@ export default function CampusRadarPage() {
       setEventName(null);
     }
 
+    addDebug(`query: ${profiles?.length ?? 0} profiles, error=${pError ? pError.message : 'none'}`);
+
     if (pError || !profiles) {
+      addDebug(`QUERY FAILED: ${JSON.stringify(pError)}`);
       setError('Unable to load nearby profiles. Retrying...');
       setLoading(false);
       return;
@@ -350,6 +354,7 @@ export default function CampusRadarPage() {
     const me = profiles.find((p: any) => p.id === user.id);
     // Show all fetched users who completed onboarding (3+ interests)
     const others = profiles.filter((p: any) => p.id !== user.id && !p.is_incognito && !blockedIds.has(p.id) && p.interests?.length >= 3);
+    addDebug(`me=${me?.full_name ?? 'NOT FOUND'} | others=${others.length} [${others.map((p: any) => p.full_name).join(', ')}]`);
     setUserProfile(me || null);
 
     {
@@ -476,28 +481,29 @@ export default function CampusRadarPage() {
   useEffect(() => {
     // Auto-check-in on radar mount then fetch data.
     const init = async () => {
+      addDebug(`init: user=${user?.id?.slice(0, 8) ?? 'NULL'} isDemo=${isDemo}`);
       if (!presenceChecked.current) {
         presenceChecked.current = true;
         setPresenceStatus('present');
 
         if (user && !isDemo) {
           const now = new Date().toISOString();
-          // Try RPC first, fall back to direct update if RPC doesn't exist
           const rpcResult = await supabase.rpc('update_presence', { p_is_present: true, p_last_seen_at: now });
           if (rpcResult.error) {
-            // RPC might not exist — fall back to direct profile update
-            await supabase.from('profiles').update({
+            addDebug(`RPC failed: ${rpcResult.error.message} — trying direct update`);
+            const directResult = await supabase.from('profiles').update({
               is_present: true,
               last_seen_at: now,
             }).eq('id', user.id);
+            addDebug(`direct update: ${directResult.error ? directResult.error.message : 'OK'}`);
+          } else {
+            addDebug('check-in OK via RPC');
           }
         }
 
-        // GPS/WiFi runs silently in the background for proximity data
         checkPresence().catch(() => {});
       }
 
-      // Fetch data AFTER check-in is confirmed in DB
       await fetchData();
     };
     init();
@@ -772,6 +778,14 @@ export default function CampusRadarPage() {
 
         {/* ── Header ── */}
         <h1 className="font-serif text-2xl text-white mb-5 tracking-tight">Gravity.</h1>
+
+        {/* ── Debug overlay (TEMPORARY) ── */}
+        {debugLog.length > 0 && (
+          <div className="mb-4 bg-black/80 border border-yellow-600/40 rounded-xl px-3 py-2 text-[10px] font-mono text-yellow-300 space-y-0.5 max-h-40 overflow-auto">
+            <div className="text-yellow-500 font-bold mb-1">DEBUG (remove later)</div>
+            {debugLog.map((line, i) => <div key={i}>{line}</div>)}
+          </div>
+        )}
 
         {/* ── Event mode banner ── */}
         {eventName && (
