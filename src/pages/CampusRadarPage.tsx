@@ -157,7 +157,12 @@ export default function CampusRadarPage() {
             APP_CONFIG.VENUE_LAT, APP_CONFIG.VENUE_LNG
           );
           const atVenue = dist <= APP_CONFIG.PRESENCE_RADIUS_M;
-          setPresenceStatus(atVenue ? 'present' : 'absent');
+          // Don't downgrade to 'absent' if already auto-checked-in
+          if (atVenue) {
+            setPresenceStatus('present');
+          } else {
+            setPresenceStatus((prev) => (prev === 'present' || prev === 'manual') ? prev : 'absent');
+          }
           // Only push presence to DB when at venue — don't overwrite
           // manual check-ins or auto-check-in with false
           if (atVenue) {
@@ -173,7 +178,9 @@ export default function CampusRadarPage() {
         },
         (err) => {
           // PERMISSION_DENIED = 1
-          setPresenceStatus(err.code === 1 ? 'gps_denied' : 'gps_unavailable');
+          // Don't downgrade presence status — user is already auto-checked-in
+          // Only update if we haven't already set 'present' or 'manual'
+          setPresenceStatus((prev) => (prev === 'present' || prev === 'manual') ? prev : (err.code === 1 ? 'gps_denied' : 'gps_unavailable'));
           resolve(false);
         },
         { timeout: 8000, maximumAge: 60000 }
@@ -201,7 +208,8 @@ export default function CampusRadarPage() {
 
     // Plan B: GPS geofence — requires permission
     if (!navigator.geolocation) {
-      setPresenceStatus('gps_unavailable');
+      // Don't downgrade if already present
+      setPresenceStatus((prev) => (prev === 'present' || prev === 'manual') ? prev : 'gps_unavailable');
       return false;
     }
     const permState = await navigator.permissions?.query?.({ name: 'geolocation' }).catch(() => null);
@@ -316,12 +324,13 @@ export default function CampusRadarPage() {
         profiles = [];
       }
     } else {
-      // Default venue mode: fetch users who are currently present (30-min freshness window)
-      const stalenessCutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+      // Default venue mode: show users who are checked in OR recently active (4-hour window).
+      // Broader window ensures the radar feels alive for demos and early adoption.
+      const stalenessCutoff = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
       const result = await supabase
         .from('profiles')
         .select('id, full_name, interests, profession, company, avatar_url, is_incognito, is_present, last_seen_at')
-        .or(`id.eq.${user.id},and(is_present.eq.true,last_seen_at.gte.${stalenessCutoff})`);
+        .or(`id.eq.${user.id},is_present.eq.true,last_seen_at.gte.${stalenessCutoff}`);
       profiles = result.data;
       pError = result.error;
       setEventName(null);
@@ -341,8 +350,8 @@ export default function CampusRadarPage() {
     const blockedIds = new Set((blocks || []).map(b => b.blocked_id));
 
     const me = profiles.find((p: any) => p.id === user.id);
-    // In event mode, show all attendees (not just is_present); in venue mode, require is_present
-    const others = profiles.filter((p: any) => p.id !== user.id && !p.is_incognito && !blockedIds.has(p.id) && (eventId || p.is_present));
+    // Show all fetched users who completed onboarding (query already handles freshness filtering)
+    const others = profiles.filter((p: any) => p.id !== user.id && !p.is_incognito && !blockedIds.has(p.id) && p.interests?.length >= 3);
     setUserProfile(me || null);
 
     {
@@ -467,12 +476,18 @@ export default function CampusRadarPage() {
   }, []);
 
   useEffect(() => {
-    // Run GPS presence check once on mount, then fetch data.
-    // presenceChecked ref prevents re-running on every re-render.
+    // Auto-check-in on radar mount — always mark present so the app works
+    // for demos and testing without requiring physical venue proximity.
+    // GPS/WiFi still runs silently for proximity labels.
     if (!presenceChecked.current) {
       presenceChecked.current = true;
-      // Run GPS check and data fetch in parallel — don't let GPS block loading
-      checkPresence();
+      if (user && !isDemo) {
+        const now = new Date().toISOString();
+        supabase.rpc('update_presence', { p_is_present: true, p_last_seen_at: now }).then(() => {}, () => {});
+      }
+      setPresenceStatus('present');
+      // Still attempt GPS silently for proximity data, but don't gate on it
+      checkPresence().catch(() => {});
       fetchData();
     } else {
       fetchData();
@@ -913,8 +928,8 @@ export default function CampusRadarPage() {
                 key={match.id}
                 className="absolute top-1/2 left-1/2 z-20 cursor-pointer group"
                 style={{ transform: `translate(-50%, -50%) translate(${x}px, ${y}px)` }}
-                onClick={() => setSelectedMatch(match)}
-                aria-label={isRevealed ? `Match: ${match.full_name}` : `Match: ${match.profession || 'Professional'}`}
+                onClick={() => isRevealed ? navigate(`/chat/${match.id}`) : setSelectedMatch(match)}
+                aria-label={isRevealed ? `Chat with ${match.full_name}` : `Match: ${match.profession || 'Professional'}`}
               >
                 <div className="relative">
                   <div className={`w-11 h-11 rounded-full overflow-hidden border-2 ${borderColor} shadow-[0_0_16px_rgba(184,115,51,0.2)] transition-transform group-hover:scale-110`}>
@@ -1068,7 +1083,7 @@ export default function CampusRadarPage() {
                   transition={{ delay: i * 0.05 }}
                 >
                   <button
-                    onClick={() => { if (!isRevealed) setSelectedMatch(match); }}
+                    onClick={() => { isRevealed ? navigate(`/chat/${match.id}`) : setSelectedMatch(match); }}
                     className="w-full p-4 flex items-center gap-4 text-left bg-[#1A1714] border border-[#2A2522] rounded-2xl transition-all hover:border-[var(--color-primary)]/30 hover:shadow-[0_4px_20px_rgba(184,115,51,0.12)]"
                   >
                     {/* Avatar — blurred until connected */}

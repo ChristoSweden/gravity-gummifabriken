@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gravity — Split-Screen Demo</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --copper: #B87333;
+    --copper-dark: #8B5A2B;
+    --copper-light: #D4956A;
+    --gold: #D4AF37;
+    --cream: #FAF7F2;
+    --card: #FFFFFF;
+    --sand: #E8E0D4;
+    --mist: #F5F0E8;
+    --text: #2A2522;
+    --text-header: #1A1714;
+    --text-sec: #6B6560;
+    --steel: #7A7572;
+    --success: #3D8B5F;
+    --error: #C24B3B;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: #1A1714;
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, .serif { font-family: 'Playfair Display', serif; }
+
+  /* Header */
+  .demo-header {
+    text-align: center;
+    padding: 40px 20px 20px;
+    color: var(--cream);
+  }
+  .demo-header h1 { font-size: 2.5rem; color: var(--copper); }
+  .demo-header p { color: var(--steel); font-size: 14px; margin-top: 8px; }
+
+  /* Timeline */
+  .timeline {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 20px 20px 80px;
+  }
+
+  .step {
+    margin-bottom: 48px;
+    opacity: 0;
+    transform: translateY(30px);
+    animation: fadeUp 0.6s ease forwards;
+  }
+  .step:nth-child(1) { animation-delay: 0.2s; }
+  .step:nth-child(2) { animation-delay: 0.4s; }
+  .step:nth-child(3) { animation-delay: 0.6s; }
+  .step:nth-child(4) { animation-delay: 0.8s; }
+  .step:nth-child(5) { animation-delay: 1.0s; }
+  .step:nth-child(6) { animation-delay: 1.2s; }
+  .step:nth-child(7) { animation-delay: 1.4s; }
+
+  @keyframes fadeUp {
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .step-label {
+    text-align: center;
+    margin-bottom: 16px;
+  }
+  .step-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--copper);
+    color: #fff;
+    font-weight: 700;
+    font-size: 14px;
+    margin-right: 10px;
+  }
+  .step-title {
+    display: inline;
+    font-family: 'Playfair Display', serif;
+    font-size: 1.25rem;
+    color: var(--cream);
+  }
+  .step-subtitle {
+    color: var(--steel);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-top: 4px;
+  }
+
+  /* Split screen */
+  .split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .phone {
+    background: var(--cream);
+    border-radius: 24px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    border: 2px solid rgba(184,115,51,0.2);
+  }
+
+  .phone-header {
+    background: rgba(250,247,242,0.95);
+    backdrop-filter: blur(10px);
+    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--sand);
+  }
+  .phone-user {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .phone-avatar {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .avatar-a { background: var(--copper); }
+  .avatar-b { background: var(--gold); }
+  .phone-name {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text-header);
+  }
+  .phone-page {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--steel);
+    font-weight: 600;
+  }
+
+  .phone-body {
+    padding: 20px 16px;
+    min-height: 320px;
+  }
+
+  /* Reusable phone UI components */
+  .mock-nav {
+    display: flex;
+    gap: 16px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--steel);
+    padding-bottom: 8px;
+  }
+  .mock-nav .active { color: var(--copper); border-bottom: 2px solid var(--copper); }
+
+  .mock-input {
+    width: 100%;
+    background: var(--card);
+    border: 1.5px solid var(--sand);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+  }
+  .mock-input.focused { border-color: var(--copper); box-shadow: 0 0 0 3px rgba(184,115,51,0.1); }
+
+  .mock-btn {
+    display: inline-block;
+    background: var(--copper);
+    color: #fff;
+    font-family: 'Playfair Display', serif;
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 10px 24px;
+    border-radius: 999px;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  }
+  .mock-btn.secondary {
+    background: transparent;
+    color: var(--text);
+    border: 1.5px solid var(--sand);
+    box-shadow: none;
+  }
+  .mock-btn.small { padding: 6px 14px; font-size: 10px; }
+  .mock-btn.success { background: var(--success); }
+
+  .mock-tag {
+    display: inline-block;
+    background: var(--mist);
+    border: 1px solid var(--sand);
+    border-radius: 999px;
+    padding: 4px 12px;
+    font-size: 11px;
+    color: var(--text);
+    font-weight: 500;
+  }
+  .mock-tag.copper { background: rgba(184,115,51,0.1); border-color: var(--copper-light); color: var(--copper-dark); }
+
+  /* Radar mock */
+  .radar-container {
+    position: relative;
+    width: 200px; height: 200px;
+    margin: 0 auto 16px;
+  }
+  .radar-ring {
+    position: absolute;
+    border: 1px solid rgba(184,115,51,0.15);
+    border-radius: 50%;
+  }
+  .radar-ring.r1 { inset: 0; }
+  .radar-ring.r2 { inset: 25%; }
+  .radar-ring.r3 { inset: 42%; }
+  .radar-center {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: var(--copper);
+    box-shadow: 0 0 10px rgba(184,115,51,0.5);
+  }
+  .radar-pip {
+    position: absolute;
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; color: #fff;
+    box-shadow: 0 0 10px rgba(184,115,51,0.3);
+    transform: translate(-50%, -50%);
+  }
+  .radar-pip-label {
+    position: absolute;
+    font-size: 9px;
+    color: var(--steel);
+    font-weight: 500;
+    white-space: nowrap;
+    transform: translate(-50%, 0);
+  }
+
+  .radar-sweep {
+    position: absolute; inset: 0;
+    border-radius: 50%;
+    background: conic-gradient(from 0deg, transparent 0deg, rgba(184,115,51,0.12) 40deg, transparent 80deg);
+    animation: sweep 5s linear infinite;
+  }
+  @keyframes sweep {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  /* Profile card mock */
+  .profile-card {
+    background: var(--card);
+    border: 1px solid var(--sand);
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  }
+  .profile-card-header {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 10px;
+  }
+  .profile-card-avatar {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 700; color: #fff;
+  }
+  .profile-card-name {
+    font-family: 'Playfair Display', serif;
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--text-header);
+  }
+  .profile-card-role {
+    font-size: 11px;
+    color: var(--steel);
+  }
+  .profile-card-tags {
+    display: flex; flex-wrap: wrap; gap: 4px;
+    margin-bottom: 10px;
+  }
+  .match-pct {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--copper);
+    margin-bottom: 8px;
+  }
+
+  /* Chat mock */
+  .chat-bubble {
+    max-width: 80%;
+    padding: 10px 14px;
+    border-radius: 16px;
+    font-size: 13px;
+    line-height: 1.4;
+    margin-bottom: 8px;
+  }
+  .chat-sent {
+    background: var(--copper);
+    color: #fff;
+    margin-left: auto;
+    border-bottom-right-radius: 4px;
+  }
+  .chat-received {
+    background: var(--card);
+    border: 1px solid var(--sand);
+    color: var(--text);
+    border-bottom-left-radius: 4px;
+  }
+  .chat-time {
+    font-size: 9px;
+    color: var(--steel);
+    text-align: center;
+    margin-bottom: 8px;
+  }
+
+  /* Connection notification */
+  .notif-card {
+    background: var(--card);
+    border: 1px solid var(--sand);
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .notif-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--copper);
+    flex-shrink: 0;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  .notif-text { font-size: 12px; color: var(--text); flex: 1; }
+  .notif-text strong { color: var(--text-header); }
+
+  /* Landing mock */
+  .landing-mini {
+    text-align: center;
+    padding-top: 20px;
+  }
+  .landing-mini .logo-circle {
+    width: 64px; height: 64px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--copper), var(--copper-dark));
+    margin: 0 auto 16px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 12px 32px rgba(184,115,51,0.3);
+  }
+  .landing-mini .logo-text {
+    font-family: 'Playfair Display', serif;
+    font-size: 10px;
+    color: #fff;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+  }
+  .landing-mini h3 {
+    font-size: 22px;
+    color: var(--text-header);
+    margin-bottom: 4px;
+  }
+  .landing-mini .tagline {
+    font-family: 'Playfair Display', serif;
+    font-style: italic;
+    font-size: 12px;
+    color: var(--copper);
+    margin-bottom: 20px;
+  }
+
+  /* Onboarding mock */
+  .onboard-field {
+    margin-bottom: 12px;
+  }
+  .onboard-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--steel);
+    margin-bottom: 4px;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .badge-live {
+    background: var(--card);
+    border: 1px solid var(--sand);
+    color: var(--text-sec);
+  }
+  .badge-live .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--success);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  /* Annotation arrows */
+  .annotation {
+    text-align: center;
+    padding: 12px 0;
+    color: var(--copper-light);
+    font-size: 20px;
+  }
+
+  .dim { opacity: 0.5; }
+  .glow { box-shadow: 0 0 20px rgba(184,115,51,0.2); }
+
+  @media (max-width: 640px) {
+    .split { grid-template-columns: 1fr; }
+    .phone-body { min-height: 260px; }
+    .demo-header h1 { font-size: 1.75rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="demo-header">
+  <h1>Gravity.</h1>
+  <p>Split-screen walkthrough — two users discovering each other at Gummifabriken</p>
+</div>
+
+<div class="timeline">
+
+  <!-- Step 1: Both arrive at landing page -->
+  <div class="step">
+    <div class="step-label">
+      <span class="step-number">1</span>
+      <span class="step-title">Both arrive at the landing page</span>
+      <div class="step-subtitle">Monday morning at Gummifabriken</div>
+    </div>
+    <div class="split">
+      <!-- Anna -->
+      <div class="phone glow">
+        <div class="phone-header">
+          <div class="phone-user">
+            <div class="phone-avatar avatar-a">A</div>
+            <div class="phone-name">Anna</div>
+          </div>
+          <div class="phone-page">Landing</div>
+        </div>
+        <div class="phone-body">
+          <div class="landing-mini">
+            <div class="logo-circle"><span class="logo-text">G</span></div>
+            <h3 class="serif">Gravity.</h3>
+            <div class="tagline">Proximity creates opportunity.</div>
+            <div style="font-size:12px;color:var(--text-sec);margin-bottom:20px;">
+              The professional networking layer for Gummifabriken.
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px;max-width:200px;margin:0 auto;">
+              <div class="mock-btn" style="cursor:pointer;">Get Started</div>
+              <div class="mock-btn secondary">Log In</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Björn -->
+      <div class="phone glow">
+        <div class="phone-header">
+          <div class="phone-user">
+            <div class="phone-avatar avatar-b">B</div>
+            <div class="phone-name">Björn</div>
+          </div>
+          <div class="phone-page">Landing</div>
+        </div>
+        <div class="phone-body">
+          <div class="landing-mini">
+            <div class="logo-circle"><span class="logo-text">G</span></div>
+            <h3 class="serif">Gravity.</h3>
+            <div class="tagline">Proximity creates opportunity.</div>
+            <div style="font-size:12px;color:var(--text-sec);margin-bottom:20px;">
+              The professional networking layer for Gummifabriken.
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px;max-width:200px;margin:0 auto;">
+              <div class="mock-btn" style="cursor:pointer;">Get Started</div>
+              <div class="mock-btn secondary">Log In</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 2: Onboarding -->
+  <div class="step">
+    <div class="step-label">
+      <span class="step-number">2</span>
+      <span class="step-title">30-second onboarding</span>
+      <div class="step-subtitle">Email, name, role, and 3+ interests — one screen, done</div>
+    </div>
+    <div class="split">
+      <div class="phone">
+        <div class="phone-header">
+          <div class="phone-user">
+            <div class="phone-avatar avatar-a">A</div>
+            <div class="phone-name">Anna</div>
+          </div>
+          <div class="phone-page">Onboarding</div>
+        </div>
+        <div class="phone-body">
+          <div style="text-align:center;margin-bottom:16px;">
+            <div class="serif" style="font-size:18px;color:var(--text-header);">Welcome to Gravity.</div>
+            <div style="font-size:11px;color:var(--steel);margin-top:4px;">Tell us a little about yourself</div>
+          </div>
+          <div class="onboard-field">
+            <div class="onboard-label">Email</div>
+            <div class="mock-input">anna.lindgren@design.se</div>
+          </div>
+          <div class="onboard-field">
+            <div class="onboard-label">Full Name</div>
+            <div class="mock-input">Anna Lindgren</div>
+          </div>
+          <div class="onboard-field">
+            <div class="onboard-label">Role</div>
+            <div class="mock-input">UX Designer at Figma Nordic</div>
+          </div>
+          <div class="onboard-field">
+            <div class="onboard-label">Interests (pick 3+)</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;">
+              <span class="mock-tag copper">Design Systems</span>
+              <span class="mock-tag copper">Sustainability</span>
+              <span class="mock-tag copper">AI/ML</span>
+              <span class="mock-tag copper">Startups</span>
+            </div>
+          </div>
+          <div style="margin-top:14px;">
+            <div class="mock-btn" style="width:100%;text-align:center;">Get Magic Link</div>
+          </div>
+        </div>
+      </div>
+      <div class="phone">
+        <div class="phone-header">
+          <div class="phone-user">
+            <div class="phone-avatar avatar-b">B</div>
+            <div class="phone-name">Björn</div>
+          </div>
+          <div class="phone-page">Onboarding</div>
+        </div>
+        <div class="phone-body">
+          <div style="text-align:center;margin-bottom:16px;">
+            <div class="serif" style="font-size:18px;color:var(--text-header);">Welcome to Gravity.</div>
+            <div style="font-size:11px;color:var(--steel);margin-top:4px;">Tell us a little about yourself</div>
+          </div>
+          <div class="onboard-field">
+            <div class="onboard-label">Email</div>
+            <div class="mock-input">bjorn.ekberg@techab.se</div>
+          </div>
+          <div class="onboard-field">
+            <div class="onboard-label">Full Name</div>
+            <div class="mock-input">Björn Ekberg</div>
+          </div>
+          <div class="onboard-field">
+            <div class="onboard-label">Role</div>
+            <div class="mock-input">CTO at GreenTech AB</div>
+          </div>
+          <div class="onboard-field">
+            <div class="onboard-label">Interests (pick 3+)</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;">
+              <span class="mock-tag copper">AI/ML</span>
+              <span class="mock-tag copper">Sustainability</span>
+              <span class="mock-tag copper">SaaS</span>
+              <span class="mock-tag copper">Startups</span>
+            </div>
+          </div>
+          <div style="margin-top:14px;">
+            <div class="mock-btn" style="width:100%;text-align:center;">Get Magic Link</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 3: Radar — they see each other -->
+  <div class="step">
+    <div class="step-label">
+      <span class="step-number">3</span>
+      <span class="step-title">The radar lights up</span>
+      <div class="step-subtitle">Both checked in — they appear on each other's radar in real time</div>
+    </div>
+    <div class="split">
+      <div class="phone glow">
+        <div class="phone-header">
+          <div class="phone-user">
+            <div class="phone-avatar avatar-a">A</div>
+            <div class="phone-name">Anna</div>
+          </div>
+          <div class="phone-page">Radar</div>
+        </div>
+        <div class="phone-body">
+          <div class="mock-nav">
+            <span class="active">Radar</span>
+            <span>Messages</span>
+            <span>Network</span>
+          </div>
+          <div style="text-align:center;margin:8px 0;">
+            <span class="badge badge-live"><span class="dot"></span> Live at Gummifabriken</span>
+          </div>
+          <div class="radar-container">
+            <div class="radar-ring r1"></div>
+            <div class="radar-ring r2"></div>
+            <div class="radar-ring r3"></div>
+            <div class="radar-sweep"></div>
+            <div class="radar-center"></div>
+            <!-- Björn pip -->
+            <div class="radar-pip avatar-b" style="top:35%;left:65%;">B</div>
+            <div class="radar-pip-label" style="top:52%;left:65%;">Björn · 12m</div>
+            <!-- Other pips -->
+            <div class="radar-pip" style="top:70%;left:25%;background:var(--steel);font-size:9px;width:24px;height:24px;">?</div>
+          </div>
+          <div class="profile-card">
+            <div class="profile-card-header">
+              <div class="profile-card-avatar avatar-b">B</div>
+              <div>
+                <div class="profile-card-name">Björn Ekberg</div>
+                <div class="profile-card-role">CTO at GreenTech AB</div>
+              </div>
+            </div>
+            <div class="match-pct">75% match — 3 shared interests</div>
+            <div class="profile-card-tags">
+              <span class="mock-tag copper">AI/ML</span>
+              <span class="mock-tag copper">Sustainability</span>
+              <span class="mock-tag copper">Startups</span>
+            </div>
+            <div class="mock-btn small" style="width:100%;text-align:center;">Connect</div>
+          </div>
+        </div>
+      </div>
+      <div class="phone glow">
+        <div class="phone-header">
+          <div class="phone-user">
+            <div class="phone-avatar avatar-b">B</div>
+            <div class="phone-name">Björn</div>
+          </div>
+          <div class="phone-page">Radar</div>
+        </div>
+        <div class="phone-body">
+          <div class="mock-nav">
+            <span class="active">Radar</span>
+            <span>Messages</span>
+            <span>Network</span>
+          </div>
+          <div style="text-align:center;margin:8px 0;">
+            <span class="badge badge-live"><span class="dot"></span> Live at Gummifabriken</span>
+          </div>
+          <div class="radar-container">
+            <div class="radar-ring r1"></div>
+            <div class="radar-ring r2"></div>
+            <div class="radar-ring r3"></div>
+            <div class="radar-sweep"></div>
+            <div class="radar-center"></div>
+            <!-- Anna pip -->
+            <div class="radar-pip avatar-a" style="top:40%;left:30%;">A</div>
+            <div class="radar-pip-label" style="top:57%;left:30%;">Anna · 12m</div>
+            <!-- Other pips -->
+            <div class="radar-pip" style="top:25%;left:70%;background:var(--steel);font-size:9px;width:24px;height:24px;">?</div>
+          </div>
+          <div class="profile-card">
+            <div class="profile-card-header">
+              <div class="profile-card-avatar avatar-a">A</div>
+              <div>
+                <div class="profile-card-name">Anna Lindgren</div>
+                <div class="profile-card-role">UX Designer at Figma Nordic</div>
+              </div>
+            </div>
+            <div class="match-pct">75% match — 3 shared interests</div>
+            <div class="profile-card-tags">
+              <span class="mock-tag copper">AI/ML</span>
+              <span class="mock-tag copper">Sustainability</span>
+              <span class="mock-tag copper">Startups</span>
+            </div>
+            <div style="font-size:11px;color:var(--steel);font-style:italic;margin-top:4px;">Waiting...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 4: Anna sends connection request -->
+  <div class="step">
+    <div class="step-label">
+      <span class="step-number">4</span>
+      <span class="step-title">Anna sends a connection request</span>
+      <div class="step-subtitle">Björn gets a notification badge — the radar just created a real opportunity</div>
+    </div>
+    <div class="split">
+      <div class="phone">
+        <div class="phone-header">
+          <div class="phone-user">
+            <div class="phone-avatar avatar-a">A</div>
+            <div class="phone-name">Anna</div>
+          </div>
+          <div class="phone-page">Radar</div>
+        </div>
+        <div class="phone-body">
+          <div class="profile-card" style="border-color:var(--copper-light);">
+            <div class="profile-card-header">
+              <div class="profile-card-avatar avatar-b">B</div>
+              <div>
+                <div class="profile-card-name">Björn Ekberg</div>
+                <div class="profile-card-role">CTO at GreenTech AB</div>
+              </div>
+            </div>
+            <div class="profile-card-tags">
+              <span class="mock-tag copper">AI/ML</span>
+              <span class="mock-tag copper">Sustainability</span>
+              <span class="mock-tag copper">Startups</span>
+            </div>
+            <div style="text-align:center;padding:8px 0;">
+              <div style="display:inline-flex;align-items:center;gap:6px;color:var(--copper);font-size:12px;font-weight:600;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                Request Sent
+              </div>
+            </div>
+          </div>
+          <div style="text-align:center;font-size:11px;color:var(--steel);margin-top:12px;font-style:italic;">
+            "Björn will see your request next time he opens the app."
+          </div>
+        </div>
+      </div>
+      <div class="phone glow">
+        <div class="phone-header">
+          <div class="phone-user">
+            <div class="phone-avatar avatar-b">B</div>
+            <div class="phone-name">Björn</div>
+          </div>
+          <div class="phone-page">Network</div>
+        </div>
+        <div class="phone-body">
+          <div class="mock-nav">
+            <span>Radar</span>
+            <span>Messages</span>
+            <span class="active" style="position:relative;">
+              Network
+              <span style="position:absolute;top:-6px;right:-10px;width:16px;height:16px;border-radius:50%;background:var(--error);color:#fff;font-size:9px;display:flex;align-items:center;justify-content:center;font-weight:700;">1</span>
+            </span>
+          </div>
+          <div style="margin-top:16px;">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--steel);margin-bottom:8px;">Pending Requests</div>
+            <div class="notif-card">
+              <div class="notif-dot"></div>
+              <div class="profile-card-avatar avatar-a" style="width:32px;height:32px;font-size:13px;flex-shrink:0;">A</div>
+              <div class="notif-text">
+                <strong>Anna Lindgren</strong><br/>
+                <span style="font-size:11px;color:var(--steel);">UX Designer · 3 shared interests</span>
+              </div>
+              <div style="display:flex;gap:6px;">
+                <div class="mock-btn small success">Accept</div>
+                <div class="mock-btn small secondary" style="padding:6px 10px;">Pass</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 5: Björn accepts → Chat unlocks -->
+  <div class="step">
+    <div class="step-label">
+      <span class="step-number">5</span>
+      <span class="step-title">Connection accepted — chat unlocks</span>
+      <div class="step-subtitle">Both can now message each other directly</div>
+    </div>
+    <div class="split">
+      <div class="phone">
+        <div class="phone-header">
+          <div class="phone-user">
+            <div class="phone-avatar avatar-a">A</div>
+            <div class="phone-name">Anna</div>
+          </div>
+          <div class="phone-page">Messages</div>
+        </div>
+        <div class="phone-body">
+          <div class="mock-nav">
+            <span>Radar</span>
+            <span class="active">Messages</span>
+            <span>Network</span>
+          </div>
+          <div style="margin-top:16px;">
+            <div class="notif-card" style="border-color:var(--copper-light);">
+              <div class="profile-card-avatar avatar-b" style="width:36px;height:36px;font-size:13px;flex-shrink:0;">B</div>
+              <div style="flex:1;">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <div style="font-weight:600;font-size:13px;color:var(--text-header);">Björn Ekberg</div>
+                  <div style="font-size:9px;color:var(--steel);">just now</div>
+                </div>
+                <div style="font-size:11px;color:var(--steel);margin-top:2px;">
+                  Connection accepted — say hello!
+                </div>
+              </div>
+            </div>
+            <div style="text-align:center;color:var(--steel);font-size:11px;margin-top:20px;">
+              Tap to start chatting
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="phone">
+        <div class="phone-header">
+          <div class="phone-user">
+            <div class="phone-avatar avatar-b">B</div>
+            <div class="phone-name">Björn</div>
+          </div>
+          <div class="phone-page">Network</div>
+        </div>
+        <div class="phone-body">
+          <div style="margin-top:8px;">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--steel);margin-bottom:8px;">Your Network</div>
+            <div class="notif-card" style="border-color: var(--success); border-width: 1.5px;">
+              <div class="profile-card-avatar avatar-a" style="width:36px;height:36px;font-size:13px;flex-shrink:0;">A</div>
+              <div style="flex:1;">
+                <div style="font-weight:600;font-size:13px;color:var(--text-header);">Anna Lindgren</div>
+                <div style="font-size:11px;color:var(--success);font-weight:500;">Connected</div>
+              </div>
+              <div class="mock-btn small" style="background:var(--copper);">Message</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 6: The conversation -->
+  <div class="step">
+    <div class="step-label">
+      <span class="step-number">6</span>
+      <span class="step-title">A real conversation starts</span>
+      <div class="step-subtitle">iMessage-style chat — proximity just turned into a collaboration</div>
+    </div>
+    <div class="split">
+      <div class="phone glow">
+        <div class="phone-header">
+          <div class="phone-user">
+            <div class="phone-avatar avatar-a">A</div>
+            <div class="phone-name">Anna</div>
+          </div>
+          <div class="phone-page" style="display:flex;align-items:center;gap:4px;">
+            <div class="phone-avatar avatar-b" style="width:20px;height:20px;font-size:9px;">B</div>
+            Björn
+          </div>
+        </div>
+        <div class="phone-body" style="display:flex;flex-direction:column;justify-content:flex-end;">
+          <div class="chat-time">Today, 09:14</div>
+          <div class="chat-bubble chat-sent">
+            Hey Björn! Saw we both share an interest in AI/ML and sustainability. I'm working on a design system for green-tech dashboards — would love to chat!
+          </div>
+          <div class="chat-bubble chat-received">
+            Anna! Perfect timing — we're actually redesigning our monitoring UI at GreenTech. Would you be up for a coffee in the kitchen?
+          </div>
+          <div class="chat-bubble chat-sent">
+            Absolutely. I'll head down in 5 min ☕
+          </div>
+          <div style="margin-top:12px;">
+            <div class="mock-input focused" style="font-size:12px;color:var(--steel);">Type a message...</div>
+          </div>
+        </div>
+      </div>
+      <div class="phone glow">
+        <div class="phone-header">
+          <div class="phone-user">
+            <div class="phone-avatar avatar-b">B</div>
+            <div class="phone-name">Björn</div>
+          </div>
+          <div class="phone-page" style="display:flex;align-items:center;gap:4px;">
+            <div class="phone-avatar avatar-a" style="width:20px;height:20px;font-size:9px;">A</div>
+            Anna
+          </div>
+        </div>
+        <div class="phone-body" style="display:flex;flex-direction:column;justify-content:flex-end;">
+          <div class="chat-time">Today, 09:14</div>
+          <div class="chat-bubble chat-received">
+            Hey Björn! Saw we both share an interest in AI/ML and sustainability. I'm working on a design system for green-tech dashboards — would love to chat!
+          </div>
+          <div class="chat-bubble chat-sent">
+            Anna! Perfect timing — we're actually redesigning our monitoring UI at GreenTech. Would you be up for a coffee in the kitchen?
+          </div>
+          <div class="chat-bubble chat-received">
+            Absolutely. I'll head down in 5 min ☕
+          </div>
+          <div style="margin-top:12px;">
+            <div class="mock-input" style="font-size:12px;color:var(--steel);">Type a message...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 7: The outcome -->
+  <div class="step">
+    <div class="step-label">
+      <span class="step-number">7</span>
+      <span class="step-title">Proximity created opportunity.</span>
+      <div class="step-subtitle">Two strangers in the same building just became collaborators</div>
+    </div>
+    <div style="text-align:center;padding:40px 20px;">
+      <div style="display:inline-flex;gap:12px;align-items:center;margin-bottom:24px;">
+        <div class="phone-avatar avatar-a" style="width:48px;height:48px;font-size:20px;">A</div>
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--copper)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M8 12h8M12 8v8"/>
+        </svg>
+        <div class="phone-avatar avatar-b" style="width:48px;height:48px;font-size:20px;">B</div>
+      </div>
+      <div style="font-family:'Playfair Display',serif;font-size:24px;color:var(--cream);margin-bottom:8px;">
+        Anna & Björn
+      </div>
+      <div style="color:var(--steel);font-size:14px;max-width:400px;margin:0 auto;line-height:1.6;">
+        They sat 12 metres apart for weeks. Gravity helped them find each other in seconds.
+        <br/><br/>
+        Now they're co-designing GreenTech's next dashboard.
+      </div>
+      <div style="margin-top:32px;display:flex;flex-wrap:wrap;justify-content:center;gap:8px;">
+        <span class="mock-tag copper">AI/ML</span>
+        <span class="mock-tag copper">Sustainability</span>
+        <span class="mock-tag copper">Startups</span>
+        <span class="mock-tag copper">Design Systems</span>
+        <span class="mock-tag copper">SaaS</span>
+      </div>
+      <div style="margin-top:40px;font-family:'Playfair Display',serif;font-style:italic;color:var(--copper);font-size:16px;">
+        Gravity. — Proximity creates opportunity.
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

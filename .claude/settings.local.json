@@ -15,7 +15,32 @@
       "Bash(git add src/index.css src/pages/OnboardingPage.tsx src/pages/CampusRadarPage.tsx src/pages/ConnectionsPage.tsx src/pages/ChatPage.tsx src/pages/ProfilePage.tsx)",
       "Bash(npx vite --port 5173)",
       "Bash(npx vitest run)",
-      "Bash(ls -la .env*)"
+      "Bash(ls -la .env*)",
+      "Bash(npm install supabase --save-dev)",
+      "Bash(npx supabase login --help)",
+      "Bash(npx supabase login --token sbp_30e1b86ae6ca0bbf900fbe65b4c72ef3d642e3a4)",
+      "Bash(npx supabase link --project-ref asyooqbvnbhhgjdhhavp)",
+      "Bash(npx supabase functions deploy icebreaker-suggestions)",
+      "Bash(curl -s -X POST \"https://asyooqbvnbhhgjdhhavp.supabase.co/functions/v1/icebreaker-suggestions\" -H \"Content-Type: application/json\" -H \"Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFzeW9vcWJ2bmJoaGdqZGhoYXZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkwNDE5NTUsImV4cCI6MjA2NDYxNzk1NX0.sMJFR2MOZhPQZfgVtODgHVMBjzrayss2RPZxT1_UmSI\" -d '{\"\"interests\"\":[\"\"technology\"\",\"\"design\"\"],\"\"profession\"\":\"\"software developer\"\",\"\"shared_interests\"\":[\"\"technology\"\"]}')",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d, indent=2\\)[:8000]\\)\")",
+      "Bash(sed -n '9633p' \"C:\\\\Users\\\\chris\\\\.claude\\\\projects\\\\c--Users-chris-Downloads-gravity---gummifabriken\\\\43f3aa9c-5732-4065-83fe-3ce21bdca587.jsonl\")",
+      "Bash(python3 -c \" import sys, json line = sys.stdin.readline\\(\\) d = json.loads\\(line\\) # Try to find text content if ''message'' in d: msg = d[''message''] if isinstance\\(msg.get\\(''content''\\), str\\): print\\(msg[''content''][:6000]\\) elif isinstance\\(msg.get\\(''content''\\), list\\): for block in msg[''content'']: if isinstance\\(block, dict\\) and block.get\\(''type''\\) == ''text'': print\\(block[''text''][:6000]\\) \")",
+      "Bash(python -c \":*)",
+      "Bash(curl -s http://localhost:3000)",
+      "Bash(npx vite --port 3000)",
+      "Bash(npx supabase --version)",
+      "Bash(npx supabase projects list)",
+      "Bash(npx supabase db execute --file supabase/setup_all.sql)",
+      "Bash(npx supabase db push --include-all)",
+      "Bash(npx supabase db push)",
+      "Bash(npx supabase db push --help)",
+      "Bash(npx supabase db dump --help)",
+      "Bash(curl -s \"https://asyoopqvbnhhgjdhhavp.supabase.co/rest/v1/profiles?select=id,full_name,is_present,last_seen_at&order=last_seen_at.desc.nullslast&limit=10\" -H \"apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFzeW9vcHF2Ym5oaGdqZGhoYXZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIxMTk1MDIsImV4cCI6MjA4NzY5NTUwMn0.m_GrzHi4y3nnNcGN0N-7WNzRSi1-mcFwz__Xmr8sJgw\" -H \"Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFzeW9vcHF2Ym5oaGdqZGhoYXZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIxMTk1MDIsImV4cCI6MjA4NzY5NTUwMn0.m_GrzHi4y3nnNcGN0N-7WNzRSi1-mcFwz__Xmr8sJgw\")",
+      "Bash(curl.exe -s \"https://asyoopqvbnhhgjdhhavp.supabase.co/rest/v1/profiles?select=id,full_name,is_present,last_seen_at&order=last_seen_at.desc.nullslast&limit=10\" -H \"apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFzeW9vcHF2Ym5oaGdqZGhoYXZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIxMTk1MDIsImV4cCI6MjA4NzY5NTUwMn0.m_GrzHi4y3nnNcGN0N-7WNzRSi1-mcFwz__Xmr8sJgw\" -H \"Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFzeW9vcHF2Ym5oaGdqZGhoYXZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIxMTk1MDIsImV4cCI6MjA4NzY5NTUwMn0.m_GrzHi4y3nnNcGN0N-7WNzRSi1-mcFwz__Xmr8sJgw\")",
+      "Bash(node -e \":*)",
+      "Bash(xxd)",
+      "Bash(node -e \"require\\(''dns''\\).resolve\\(''asyoopqvbnhhgjdhhavp.supabase.co'', \\(err, addr\\) => console.log\\(err || addr\\)\\)\")",
+      "Bash(node -e \"require\\(''dns''\\).resolve\\(''google.com'', \\(err, addr\\) => console.log\\(err || addr\\)\\)\")"
     ]
   }
 }
